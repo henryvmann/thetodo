@@ -53,6 +53,7 @@ async function fetchAgencyOverview(domain: string, token: string): Promise<strin
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const agencyToken = process.env.AGENCY_API_TOKEN;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
@@ -106,13 +107,13 @@ ${overview}`,
     ],
   });
 
-  try {
-    const text = message.content[0].type === "text" ? message.content[0].text : "";
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) return NextResponse.json({ error: "Could not parse AI response", raw: text }, { status: 500 });
-    const tasks = JSON.parse(jsonMatch[0]);
-    return NextResponse.json({ tasks, source: "agency", overview: overview.slice(0, 500) + "..." });
+  const text = message.content[0].type === "text" ? message.content[0].text : "";
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return NextResponse.json({ error: "Could not parse AI response", raw: text }, { status: 500 });
+  const tasks = JSON.parse(jsonMatch[0]);
+  return NextResponse.json({ tasks, source: "agency", overview: overview.slice(0, 500) + "..." });
+
   } catch (e) {
-    return NextResponse.json({ error: "Failed to parse response", details: String(e) }, { status: 500 });
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
