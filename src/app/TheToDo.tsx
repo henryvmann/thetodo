@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Customer, Task, Priority, Status } from "@/lib/types";
 import * as store from "@/lib/store";
-import { seedTasks } from "@/lib/seed-tasks";
+import { seedIfEmpty } from "@/lib/seed-tasks";
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; border: string; bg: string }> = {
   P1: { label: "P1 — Critical", color: "text-red-600", border: "border-l-red-500", bg: "bg-red-50" },
@@ -22,8 +22,6 @@ function formatDate(iso: string | null): string {
   const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
-
-const MSD_URL = "https://msd-command.vercel.app";
 
 const HEALTH_COLORS: Record<string, string> = {
   green: "bg-green-100 text-green-700",
@@ -87,12 +85,11 @@ export default function TheToDo() {
   const [newTaskDesc, setNewTaskDesc] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>("P2");
   const [newTaskDue, setNewTaskDue] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [importMsg, setImportMsg] = useState<string | null>(null);
   const addCustomerRef = useRef<HTMLInputElement>(null);
   const addTaskRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    seedIfEmpty();
     const data = store.getAll();
     setCustomers(data.customers);
     setTasks(data.tasks);
@@ -102,27 +99,6 @@ export default function TheToDo() {
     const data = store.getAll();
     setCustomers(data.customers);
     setTasks(data.tasks);
-  };
-
-  const handleSeedTasks = () => {
-    const result = seedTasks();
-    setImportMsg(`Seeded ${result.tasks} tasks across ${result.customers} customers`);
-    refresh();
-    setTimeout(() => setImportMsg(null), 5000);
-  };
-
-  const handleImportMSD = async () => {
-    setImporting(true);
-    setImportMsg(null);
-    try {
-      const result = await store.importFromMSD(MSD_URL);
-      setImportMsg(`+${result.added} new, ${result.updated} updated, ${result.removed} removed`);
-      refresh();
-    } catch (e) {
-      setImportMsg(`Import failed: ${e instanceof Error ? e.message : "Unknown error"}`);
-    }
-    setImporting(false);
-    setTimeout(() => setImportMsg(null), 5000);
   };
 
   const handleAddCustomer = () => {
@@ -235,35 +211,13 @@ export default function TheToDo() {
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
               <h2 className="text-sm font-semibold text-gray-900">Customers</h2>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={handleSeedTasks}
-                  className="text-[10px] font-medium px-2 py-1 rounded bg-orange-500 text-white hover:bg-orange-600 transition-colors"
-                  title="Load tasks from your to-do list"
-                >
-                  Seed Tasks
-                </button>
-                <button
-                  onClick={handleImportMSD}
-                  disabled={importing}
-                  className="text-[10px] font-medium px-2 py-1 rounded bg-gray-900 text-white hover:bg-gray-700 transition-colors disabled:opacity-50"
-                  title="Sync customers from MSD Command"
-                >
-                  {importing ? "..." : "Sync MSD"}
-                </button>
-                <button
-                  onClick={() => setShowAddCustomer(true)}
-                  className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center hover:bg-orange-600 transition-colors"
-                >
-                  +
-                </button>
-              </div>
+              <button
+                onClick={() => setShowAddCustomer(true)}
+                className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center hover:bg-orange-600 transition-colors"
+              >
+                +
+              </button>
             </div>
-            {importMsg && (
-              <div className={`px-3 py-1.5 text-xs border-b ${importMsg.includes("failed") ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
-                {importMsg}
-              </div>
-            )}
 
             {showAddCustomer && (
               <div className="px-3 py-2 border-b bg-orange-50">

@@ -1,4 +1,4 @@
-import type { AppData, Customer, CustomerMeta, Task, Priority, Status } from "./types";
+import type { AppData, Customer, Task, Priority, Status } from "./types";
 
 const STORAGE_KEY = "thetodo-data";
 
@@ -97,78 +97,3 @@ export function deleteTask(id: string): void {
   saveData(data);
 }
 
-export interface MSDCustomer {
-  name: string;
-  owner: string | null;
-  stage: string | null;
-  quarter: string | null;
-  saasStartingARR: number;
-  totalStartingRevenue: number;
-  contractStartDate: string | null;
-  productType: string | null;
-  healthScore: number;
-  healthLabel: string;
-  healthColor: string;
-}
-
-export async function importFromMSD(msdUrl: string, ownerFilter = "Henry Mann"): Promise<{ added: number; updated: number; removed: number }> {
-  const resp = await fetch(`${msdUrl}/api/customers-export`);
-  if (!resp.ok) throw new Error(`MSD API error: ${resp.status}`);
-  const json = await resp.json();
-  const msdCustomers: MSDCustomer[] = json.customers || [];
-
-  const data = loadData();
-  const colors = ["#f97316", "#ef4444", "#8b5cf6", "#06b6d4", "#10b981", "#ec4899", "#6366f1", "#f59e0b"];
-  const normalize = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-  // Remove customers that came from MSD but no longer match the owner filter.
-  // A customer "came from MSD" if it has metadata attached.
-  const validNames = new Set(
-    msdCustomers
-      .filter((mc) => mc.name && mc.owner === ownerFilter)
-      .map((mc) => normalize(mc.name))
-  );
-  const toRemove = data.customers.filter((c) => c.meta && !validNames.has(normalize(c.name)));
-  const removeIds = new Set(toRemove.map((c) => c.id));
-  data.customers = data.customers.filter((c) => !removeIds.has(c.id));
-  data.tasks = data.tasks.filter((t) => !removeIds.has(t.customerId));
-  const removed = toRemove.length;
-
-  let added = 0;
-  let updated = 0;
-
-  for (const mc of msdCustomers) {
-    if (!mc.name) continue;
-    if (mc.owner !== ownerFilter) continue;
-    const meta: CustomerMeta = {
-      owner: mc.owner,
-      stage: mc.stage,
-      quarter: mc.quarter,
-      saasStartingARR: mc.saasStartingARR,
-      totalStartingRevenue: mc.totalStartingRevenue,
-      contractStartDate: mc.contractStartDate,
-      productType: mc.productType,
-      healthScore: mc.healthScore,
-      healthLabel: mc.healthLabel,
-      healthColor: mc.healthColor,
-    };
-
-    const existing = data.customers.find((c) => normalize(c.name) === normalize(mc.name));
-    if (existing) {
-      existing.meta = meta;
-      updated++;
-    } else {
-      data.customers.push({
-        id: generateId(),
-        name: mc.name,
-        color: colors[data.customers.length % colors.length],
-        createdAt: new Date().toISOString(),
-        meta,
-      });
-      added++;
-    }
-  }
-
-  saveData(data);
-  return { added, updated, removed };
-}

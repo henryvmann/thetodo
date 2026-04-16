@@ -1,111 +1,127 @@
+import type { CustomerMeta, Priority } from "./types";
 import * as store from "./store";
 
+interface SeedCustomer {
+  name: string;
+  meta: CustomerMeta;
+}
+
 interface SeedTask {
+  customer: string;
   title: string;
-  priority?: "P1" | "P2" | "P3";
+  priority: Priority;
   description?: string;
 }
 
-const SEED_DATA: Record<string, SeedTask[]> = {
-  DataRobot: [
-    { title: "Review latest call notes and extract action items", priority: "P2" },
-    { title: "Design new ad images and creative variants", priority: "P2" },
-    { title: "Launch new campaigns using updated creative", priority: "P2" },
-    { title: "Respond to open Slack messages from DataRobot team", priority: "P1" },
-    { title: "Build and launch ChatGPT-themed ad experiments", priority: "P2" },
-  ],
-  Backbase: [
-    { title: "Audit each reporting gap and confirm whether it's a real platform limitation or a config issue", priority: "P1", description: "Go through every item flagged as 'can't be done' and verify in-platform. Document which are real gaps vs. fixable." },
-  ],
-  Ambient: [
-    { title: "Review latest call recording and pull out key notes", priority: "P2" },
-    { title: "Send EBR request email to Ambient stakeholders", priority: "P1" },
-    { title: "Prepare webinar slide deck and talking points", priority: "P2" },
-    { title: "Build presentation slides for Gil's review", priority: "P2" },
-    { title: "Schedule a 30-min sync with Alberto to align on next steps", priority: "P1" },
-  ],
-  Parity: [
-    { title: "Read through the shared document and summarize key points", priority: "P2" },
-    { title: "Research dynamic ad creative capabilities and report findings", priority: "P2" },
-  ],
-  Crusoe: [
-    { title: "Set up Facebook NVIDIA ad campaigns with approved creative", priority: "P2" },
-    { title: "Apply the 4 requested adjustments to active campaigns", priority: "P1" },
-  ],
-  Monotype: [
-    { title: "Review and finalize the Monotype renewal contract", priority: "P1" },
-  ],
-  Motus: [
-    { title: "Build demo campaigns to showcase platform capabilities", priority: "P2" },
-    { title: "Create brand awareness campaign structure and targeting", priority: "P2" },
-    { title: "Launch production campaigns with full targeting and budget", priority: "P1" },
-    { title: "Build out Trends Report campaign with proper experiment setup", priority: "P2" },
-    { title: "Review current total spend ($125k) and flag any pacing issues", priority: "P3" },
-  ],
-  Zoom: [
-    { title: "Verify audiences are syncing correctly between Metadata and SFDC", priority: "P2" },
-    { title: "Remove CX audiences from active targeting", priority: "P1" },
-    { title: "Prepare renewal proposal and schedule renewal conversation", priority: "P1" },
-  ],
-  SafelyYou: [
-    { title: "QA current campaign setup and flag anything off-track", priority: "P2" },
-  ],
-  DT: [
-    { title: "Run Crystal comparison analysis and document findings", priority: "P2" },
-  ],
-  Planful: [
-    { title: "Pull performance report and package for renewal discussion", priority: "P1" },
-  ],
-  HSD: [
-    { title: "Inspect account setup and identify optimization opportunities", priority: "P2" },
-  ],
-};
-
-const GENERAL_TASKS: SeedTask[] = [
-  { title: "Map out the LinkedIn Manus automation flow end-to-end", priority: "P2" },
-  { title: "Submit outstanding expense reports", priority: "P3" },
+const CUSTOMERS: SeedCustomer[] = [
+  { name: "Zoom", meta: { owner: "Henry Mann", stage: "2. Delivering Value", quarter: "Q3 2027", saasStartingARR: 250000, totalStartingRevenue: 250000, contractStartDate: null, productType: "None", healthScore: 79, healthLabel: "Monitor", healthColor: "yellow" } },
+  { name: "Crusoe", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q1 2028", saasStartingARR: 240000, totalStartingRevenue: 240000, contractStartDate: null, productType: "None", healthScore: 50, healthLabel: "At Risk", healthColor: "orange" } },
+  { name: "Imagine Software", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q2 2028", saasStartingARR: 125761, totalStartingRevenue: 125761, contractStartDate: null, productType: "None", healthScore: 18, healthLabel: "Critical", healthColor: "red" } },
+  { name: "N-able", meta: { owner: "Henry Mann", stage: "Closed Won", quarter: "Q1 2027", saasStartingARR: 101000, totalStartingRevenue: 101000, contractStartDate: null, productType: "None", healthScore: 81, healthLabel: "Healthy", healthColor: "green" } },
+  { name: "Docebo", meta: { owner: "Henry Mann", stage: "Closed Won", quarter: "Q1 2027", saasStartingARR: 98000, totalStartingRevenue: 98000, contractStartDate: null, productType: "None", healthScore: 71, healthLabel: "Monitor", healthColor: "yellow" } },
+  { name: "Monotype", meta: { owner: "Henry Mann", stage: "5. Verbal Received", quarter: "Q1 2027", saasStartingARR: 91125, totalStartingRevenue: 91125, contractStartDate: null, productType: "None", healthScore: 86, healthLabel: "Healthy", healthColor: "green" } },
+  { name: "Motus", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q1 2028", saasStartingARR: 85000, totalStartingRevenue: 85000, contractStartDate: null, productType: "None", healthScore: 46, healthLabel: "At Risk", healthColor: "orange" } },
+  { name: "Planful", meta: { owner: "Henry Mann", stage: "At Risk", quarter: "Q2 2027", saasStartingARR: 82800, totalStartingRevenue: 82800, contractStartDate: null, productType: "None", healthScore: 61, healthLabel: "Monitor", healthColor: "yellow" } },
+  { name: "tvScientific", meta: { owner: "Henry Mann", stage: "6. In Procurement", quarter: "Q1 2027", saasStartingARR: 70000, totalStartingRevenue: 70000, contractStartDate: null, productType: "None", healthScore: 73, healthLabel: "Monitor", healthColor: "yellow" } },
+  { name: "Direct Travel", meta: { owner: "Henry Mann", stage: "Closed Won", quarter: "Q1 2027", saasStartingARR: 62400, totalStartingRevenue: 62400, contractStartDate: null, productType: "None", healthScore: 80, healthLabel: "Healthy", healthColor: "green" } },
+  { name: "Ambient", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q2 2027", saasStartingARR: 42500, totalStartingRevenue: 42500, contractStartDate: null, productType: "None", healthScore: 45, healthLabel: "At Risk", healthColor: "orange" } },
+  { name: "Postscript", meta: { owner: "Henry Mann", stage: "Closed Won", quarter: "Q1 2027", saasStartingARR: 42408, totalStartingRevenue: 42408, contractStartDate: null, productType: "None", healthScore: 80, healthLabel: "Healthy", healthColor: "green" } },
+  { name: "ExtraHop", meta: { owner: "Henry Mann", stage: "Closed Won", quarter: "Q1 2027", saasStartingARR: 36000, totalStartingRevenue: 36000, contractStartDate: null, productType: "None", healthScore: 92, healthLabel: "Healthy", healthColor: "green" } },
+  { name: "HopSkipDrive", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q2 2027", saasStartingARR: 24000, totalStartingRevenue: 24000, contractStartDate: null, productType: "None", healthScore: 63, healthLabel: "Monitor", healthColor: "yellow" } },
+  { name: "SafelyYou", meta: { owner: "Henry Mann", stage: "Closed Won", quarter: "Q1 2027", saasStartingARR: 21268, totalStartingRevenue: 21268, contractStartDate: null, productType: "None", healthScore: 64, healthLabel: "Monitor", healthColor: "yellow" } },
+  { name: "DataRobot", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q2 2027", saasStartingARR: 20000, totalStartingRevenue: 20000, contractStartDate: null, productType: "None", healthScore: 55, healthLabel: "At Risk", healthColor: "orange" } },
+  { name: "Touchlight", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q4 2027", saasStartingARR: 20000, totalStartingRevenue: 20000, contractStartDate: null, productType: "None", healthScore: 56, healthLabel: "At Risk", healthColor: "orange" } },
+  { name: "FaceUp", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q2 2027", saasStartingARR: 17000, totalStartingRevenue: 17000, contractStartDate: null, productType: "None", healthScore: 67, healthLabel: "Monitor", healthColor: "yellow" } },
+  { name: "Pixaera", meta: { owner: "Henry Mann", stage: "2. Delivering Value", quarter: "Q3 2027", saasStartingARR: 12000, totalStartingRevenue: 12000, contractStartDate: null, productType: "None", healthScore: 87, healthLabel: "Healthy", healthColor: "green" } },
+  { name: "Workvivo", meta: { owner: "Henry Mann", stage: "2. Delivering Value", quarter: "Q3 2027", saasStartingARR: 12000, totalStartingRevenue: 12000, contractStartDate: null, productType: "None", healthScore: 32, healthLabel: "Critical", healthColor: "red" } },
+  { name: "DSL Digital", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q1 2028", saasStartingARR: 10000, totalStartingRevenue: 10000, contractStartDate: null, productType: "None", healthScore: 17, healthLabel: "Critical", healthColor: "red" } },
+  { name: "Yotpo", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q4 2027", saasStartingARR: 9000, totalStartingRevenue: 9000, contractStartDate: null, productType: "None", healthScore: 63, healthLabel: "Monitor", healthColor: "yellow" } },
+  { name: "Monograph", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q2 2027", saasStartingARR: 3000, totalStartingRevenue: 3000, contractStartDate: null, productType: "None", healthScore: 86, healthLabel: "Healthy", healthColor: "green" } },
+  { name: "Swap", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q2 2027", saasStartingARR: 3000, totalStartingRevenue: 3000, contractStartDate: null, productType: "None", healthScore: 86, healthLabel: "Healthy", healthColor: "green" } },
+  { name: "Backbase", meta: { owner: "Henry Mann", stage: null, quarter: null, saasStartingARR: 0, totalStartingRevenue: 0, contractStartDate: null, productType: null, healthScore: 50, healthLabel: "At Risk", healthColor: "orange" } },
+  { name: "Parity", meta: { owner: "Henry Mann", stage: null, quarter: null, saasStartingARR: 0, totalStartingRevenue: 0, contractStartDate: null, productType: null, healthScore: 50, healthLabel: "At Risk", healthColor: "orange" } },
 ];
 
-export function seedTasks(): { customers: number; tasks: number } {
+const TASKS: SeedTask[] = [
+  // DataRobot
+  { customer: "DataRobot", title: "Review latest call notes and extract action items", priority: "P2" },
+  { customer: "DataRobot", title: "Design new ad images and creative variants", priority: "P2" },
+  { customer: "DataRobot", title: "Launch new campaigns using updated creative", priority: "P2" },
+  { customer: "DataRobot", title: "Respond to open Slack messages from DataRobot team", priority: "P1" },
+  { customer: "DataRobot", title: "Build and launch ChatGPT-themed ad experiments", priority: "P2" },
+  // Backbase
+  { customer: "Backbase", title: "Audit each reporting gap and confirm whether it's a real platform limitation or a config issue", priority: "P1", description: "Go through every item flagged as 'can't be done' and verify in-platform. Document which are real gaps vs. fixable." },
+  // Ambient
+  { customer: "Ambient", title: "Review latest call recording and pull out key notes", priority: "P2" },
+  { customer: "Ambient", title: "Send EBR request email to Ambient stakeholders", priority: "P1" },
+  { customer: "Ambient", title: "Prepare webinar slide deck and talking points", priority: "P2" },
+  { customer: "Ambient", title: "Build presentation slides for Gil's review", priority: "P2" },
+  { customer: "Ambient", title: "Schedule a 30-min sync with Alberto to align on next steps", priority: "P1" },
+  // Parity
+  { customer: "Parity", title: "Read through the shared document and summarize key points", priority: "P2" },
+  { customer: "Parity", title: "Research dynamic ad creative capabilities and report findings", priority: "P2" },
+  // Crusoe
+  { customer: "Crusoe", title: "Set up Facebook NVIDIA ad campaigns with approved creative", priority: "P2" },
+  { customer: "Crusoe", title: "Apply the 4 requested adjustments to active campaigns", priority: "P1" },
+  // Monotype
+  { customer: "Monotype", title: "Review and finalize the Monotype renewal contract", priority: "P1" },
+  // Motus
+  { customer: "Motus", title: "Build demo campaigns to showcase platform capabilities", priority: "P2" },
+  { customer: "Motus", title: "Create brand awareness campaign structure and targeting", priority: "P2" },
+  { customer: "Motus", title: "Launch production campaigns with full targeting and budget", priority: "P1" },
+  { customer: "Motus", title: "Build out Trends Report campaign with proper experiment setup", priority: "P2" },
+  { customer: "Motus", title: "Review current total spend ($125k) and flag any pacing issues", priority: "P3" },
+  // Zoom
+  { customer: "Zoom", title: "Verify audiences are syncing correctly between Metadata and SFDC", priority: "P2" },
+  { customer: "Zoom", title: "Remove CX audiences from active targeting", priority: "P1" },
+  { customer: "Zoom", title: "Prepare renewal proposal and schedule renewal conversation", priority: "P1" },
+  // SafelyYou
+  { customer: "SafelyYou", title: "QA current campaign setup and flag anything off-track", priority: "P2" },
+  // Direct Travel
+  { customer: "Direct Travel", title: "Run Crystal comparison analysis and document findings", priority: "P2" },
+  // Planful
+  { customer: "Planful", title: "Pull performance report and package for renewal discussion", priority: "P1" },
+  // HopSkipDrive
+  { customer: "HopSkipDrive", title: "Inspect account setup and identify optimization opportunities", priority: "P2" },
+  // General
+  { customer: "_General", title: "Map out the LinkedIn Manus automation flow end-to-end", priority: "P2" },
+  { customer: "_General", title: "Submit outstanding expense reports", priority: "P3" },
+];
+
+export function seedIfEmpty(): boolean {
   const data = store.getAll();
-  const normalize = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (data.customers.length > 0 || data.tasks.length > 0) return false;
 
-  let taskCount = 0;
+  const colors = ["#f97316", "#ef4444", "#8b5cf6", "#06b6d4", "#10b981", "#ec4899", "#6366f1", "#f59e0b"];
+  const customerMap = new Map<string, string>(); // name → id
 
-  for (const [customerName, tasks] of Object.entries(SEED_DATA)) {
-    let customer = data.customers.find((c) => normalize(c.name) === normalize(customerName));
-
-    if (!customer) {
-      customer = store.addCustomer(customerName);
+  // Create all customers
+  for (let i = 0; i < CUSTOMERS.length; i++) {
+    const c = store.addCustomer(CUSTOMERS[i].name);
+    store.updateCustomer(c.id, { color: colors[i % colors.length] });
+    // Attach meta by re-saving through raw localStorage
+    const d = store.getAll();
+    const found = d.customers.find((x) => x.id === c.id);
+    if (found) {
+      found.meta = CUSTOMERS[i].meta;
+      localStorage.setItem("thetodo-data", JSON.stringify(d));
     }
-
-    const existingTasks = store.getAll().tasks.filter((t) => t.customerId === customer!.id);
-    const existingTitles = new Set(existingTasks.map((t) => normalize(t.title)));
-
-    for (const task of tasks) {
-      if (existingTitles.has(normalize(task.title))) continue;
-      store.addTask(customer.id, task.title, {
-        priority: task.priority || "P2",
-        description: task.description,
-      });
-      taskCount++;
-    }
+    customerMap.set(CUSTOMERS[i].name, c.id);
   }
 
-  // General tasks go under a "_General" customer
-  if (GENERAL_TASKS.length > 0) {
-    let general = data.customers.find((c) => normalize(c.name) === "general");
-    if (!general) {
-      general = store.addCustomer("_General");
-    }
-    const existingTasks = store.getAll().tasks.filter((t) => t.customerId === general!.id);
-    const existingTitles = new Set(existingTasks.map((t) => normalize(t.title)));
-    for (const task of GENERAL_TASKS) {
-      if (existingTitles.has(normalize(task.title))) continue;
-      store.addTask(general.id, task.title, { priority: task.priority });
-      taskCount++;
-    }
+  // Add _General for non-customer tasks
+  const gen = store.addCustomer("_General");
+  customerMap.set("_General", gen.id);
+
+  // Create tasks
+  for (const t of TASKS) {
+    const custId = customerMap.get(t.customer);
+    if (!custId) continue;
+    store.addTask(custId, t.title, {
+      priority: t.priority,
+      description: t.description,
+    });
   }
 
-  return { customers: Object.keys(SEED_DATA).length + 1, tasks: taskCount };
+  return true;
 }
