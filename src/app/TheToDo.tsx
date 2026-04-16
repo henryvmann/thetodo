@@ -85,6 +85,11 @@ export default function TheToDo() {
   const [newTaskDesc, setNewTaskDesc] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>("P2");
   const [newTaskDue, setNewTaskDue] = useState("");
+  const [showDropNotes, setShowDropNotes] = useState(false);
+  const [notesText, setNotesText] = useState("");
+  const [parsedTasks, setParsedTasks] = useState<{ title: string; priority: Priority; description?: string; dueDate?: string | null; selected: boolean }[]>([]);
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
   const addCustomerRef = useRef<HTMLInputElement>(null);
   const addTaskRef = useRef<HTMLInputElement>(null);
 
@@ -99,6 +104,47 @@ export default function TheToDo() {
     const data = store.getAll();
     setCustomers(data.customers);
     setTasks(data.tasks);
+  };
+
+  const handleParseNotes = async () => {
+    if (!notesText.trim()) return;
+    setParsing(true);
+    setParseError(null);
+    setParsedTasks([]);
+    const customerName = selectedCustomer ? customers.find((c) => c.id === selectedCustomer)?.name : "Unknown";
+    try {
+      const resp = await fetch("/api/parse-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notesText, customerName }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Parse failed");
+      setParsedTasks((data.tasks || []).map((t: { title: string; priority?: string; description?: string; dueDate?: string | null }) => ({
+        ...t,
+        priority: (t.priority as Priority) || "P2",
+        selected: true,
+      })));
+    } catch (e) {
+      setParseError(e instanceof Error ? e.message : "Unknown error");
+    }
+    setParsing(false);
+  };
+
+  const handleAddParsedTasks = () => {
+    if (!selectedCustomer) return;
+    const toAdd = parsedTasks.filter((t) => t.selected);
+    for (const t of toAdd) {
+      store.addTask(selectedCustomer, t.title, {
+        priority: t.priority,
+        description: t.description,
+        dueDate: t.dueDate || null,
+      });
+    }
+    refresh();
+    setShowDropNotes(false);
+    setNotesText("");
+    setParsedTasks([]);
   };
 
   const handleAddCustomer = () => {
@@ -375,12 +421,20 @@ export default function TheToDo() {
               <span className="text-xs text-gray-400 ml-2">{filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""}</span>
             </div>
             {selectedCustomer && (
-              <button
-                onClick={() => setShowAddTask(true)}
-                className="px-4 py-1.5 rounded-lg text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors"
-              >
-                + New Task
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowDropNotes(true)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+                >
+                  Drop Notes
+                </button>
+                <button
+                  onClick={() => setShowAddTask(true)}
+                  className="px-4 py-1.5 rounded-lg text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+                >
+                  + New Task
+                </button>
+              </div>
             )}
           </div>
 
@@ -615,6 +669,103 @@ export default function TheToDo() {
                   Done
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drop Notes modal */}
+      {showDropNotes && selectedCustomer && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => { setShowDropNotes(false); setParsedTasks([]); setNotesText(""); setParseError(null); }}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="stripe-bar rounded-t-2xl" />
+            <div className="p-6 flex flex-col flex-1 min-h-0">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Drop Notes</h2>
+                  <p className="text-xs text-gray-500">Paste your call notes — AI will extract actionable tasks</p>
+                </div>
+                <span className="text-xs font-medium px-2 py-1 rounded text-white" style={{ backgroundColor: customers.find((c) => c.id === selectedCustomer)?.color || "#666" }}>
+                  {customers.find((c) => c.id === selectedCustomer)?.name}
+                </span>
+              </div>
+
+              {parsedTasks.length === 0 ? (
+                <>
+                  <textarea
+                    value={notesText}
+                    onChange={(e) => setNotesText(e.target.value)}
+                    placeholder="Paste your call notes, meeting transcript, or any text with action items..."
+                    rows={10}
+                    className="w-full text-sm border border-gray-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none flex-1"
+                    autoFocus
+                  />
+                  {parseError && <p className="text-xs text-red-600 mt-2">{parseError}</p>}
+                  <div className="flex justify-end gap-2 mt-4">
+                    <button onClick={() => { setShowDropNotes(false); setNotesText(""); setParseError(null); }} className="text-sm text-gray-500 px-4 py-1.5 hover:text-gray-700">Cancel</button>
+                    <button
+                      onClick={handleParseNotes}
+                      disabled={parsing || !notesText.trim()}
+                      className="px-5 py-2 rounded-lg text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                    >
+                      {parsing ? "Parsing..." : "Extract Tasks"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-500 mb-2">
+                    {parsedTasks.filter((t) => t.selected).length} of {parsedTasks.length} tasks selected — uncheck any you don&apos;t want
+                  </p>
+                  <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0">
+                    {parsedTasks.map((t, i) => (
+                      <div
+                        key={i}
+                        className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${t.selected ? "border-orange-200 bg-orange-50/50" : "border-gray-200 bg-gray-50 opacity-50"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={t.selected}
+                          onChange={() => setParsedTasks((prev) => prev.map((p, j) => j === i ? { ...p, selected: !p.selected } : p))}
+                          className="mt-1 accent-orange-500"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-900">{t.title}</span>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                              t.priority === "P1" ? "bg-red-50 text-red-600" : t.priority === "P3" ? "bg-gray-100 text-gray-500" : "bg-orange-50 text-orange-600"
+                            }`}>{t.priority}</span>
+                            {t.dueDate && <span className="text-[10px] text-gray-400">{t.dueDate}</span>}
+                          </div>
+                          {t.description && <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>}
+                        </div>
+                        <select
+                          value={t.priority}
+                          onChange={(e) => setParsedTasks((prev) => prev.map((p, j) => j === i ? { ...p, priority: e.target.value as Priority } : p))}
+                          className="text-[10px] border border-gray-200 rounded px-1 py-0.5 bg-white shrink-0"
+                        >
+                          <option value="P1">P1</option>
+                          <option value="P2">P2</option>
+                          <option value="P3">P3</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
+                    <button onClick={() => { setParsedTasks([]); }} className="text-xs text-gray-500 hover:text-gray-700">Back to notes</button>
+                    <div className="flex gap-2">
+                      <button onClick={() => { setShowDropNotes(false); setParsedTasks([]); setNotesText(""); }} className="text-sm text-gray-500 px-4 py-1.5 hover:text-gray-700">Cancel</button>
+                      <button
+                        onClick={handleAddParsedTasks}
+                        disabled={parsedTasks.filter((t) => t.selected).length === 0}
+                        className="px-5 py-2 rounded-lg text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                      >
+                        Add {parsedTasks.filter((t) => t.selected).length} Tasks
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
