@@ -1,5 +1,6 @@
 export type Priority = "P1" | "P2" | "P3";
 export type Status = "todo" | "in-progress" | "done";
+export type TaskSource = "manual" | "agency" | "seed";
 
 export interface Task {
   id: string;
@@ -12,6 +13,7 @@ export interface Task {
   createdAt: string;
   completedAt: string | null;
   order: number;
+  source: TaskSource;
 }
 
 export interface CustomerMeta {

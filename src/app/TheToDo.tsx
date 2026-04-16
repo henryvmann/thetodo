@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { Customer, Task, Priority, Status } from "@/lib/types";
+import type { Customer, Task, Priority, Status, TaskSource } from "@/lib/types";
 import * as store from "@/lib/store";
 import { seedIfEmpty } from "@/lib/seed-tasks";
 
@@ -77,6 +77,7 @@ export default function TheToDo() {
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<Status | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
+  const [filterSource, setFilterSource] = useState<TaskSource | "all">("all");
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -88,6 +89,7 @@ export default function TheToDo() {
   const [showDropNotes, setShowDropNotes] = useState(false);
   const [notesText, setNotesText] = useState("");
   const [parsedTasks, setParsedTasks] = useState<{ title: string; priority: Priority; description?: string; dueDate?: string | null; selected: boolean }[]>([]);
+  const [parsedSource, setParsedSource] = useState<"agency" | "manual">("manual");
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const addCustomerRef = useRef<HTMLInputElement>(null);
@@ -111,6 +113,7 @@ export default function TheToDo() {
     setParsing(true);
     setParseError(null);
     setParsedTasks([]);
+    setParsedSource("agency");
     const customerName = customers.find((c) => c.id === selectedCustomer)?.name || "";
     try {
       const resp = await fetch("/api/agency-tasks", {
@@ -136,6 +139,7 @@ export default function TheToDo() {
     setParsing(true);
     setParseError(null);
     setParsedTasks([]);
+    setParsedSource("manual");
     const customerName = selectedCustomer ? customers.find((c) => c.id === selectedCustomer)?.name : "Unknown";
     try {
       const resp = await fetch("/api/parse-tasks", {
@@ -164,6 +168,7 @@ export default function TheToDo() {
         priority: t.priority,
         description: t.description,
         dueDate: t.dueDate || null,
+        source: parsedSource,
       });
     }
     refresh();
@@ -228,6 +233,7 @@ export default function TheToDo() {
     .filter((t) => !selectedCustomer || t.customerId === selectedCustomer)
     .filter((t) => filterStatus === "all" || t.status === filterStatus)
     .filter((t) => filterPriority === "all" || t.priority === filterPriority)
+    .filter((t) => filterSource === "all" || (t.source || "seed") === filterSource)
     .sort((a, b) => {
       if (a.status === "done" && b.status !== "done") return 1;
       if (a.status !== "done" && b.status === "done") return -1;
@@ -443,6 +449,16 @@ export default function TheToDo() {
                 <option value="P2">P2 — Normal</option>
                 <option value="P3">P3 — Low</option>
               </select>
+              <select
+                value={filterSource}
+                onChange={(e) => setFilterSource(e.target.value as TaskSource | "all")}
+                className="text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="all">All Sources</option>
+                <option value="manual">Manual</option>
+                <option value="agency">Agency</option>
+                <option value="seed">Seed</option>
+              </select>
               <span className="text-xs text-gray-400 ml-2">{filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""}</span>
             </div>
             {selectedCustomer && (
@@ -565,6 +581,12 @@ export default function TheToDo() {
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${pCfg.bg} ${pCfg.color}`}>{t.priority}</span>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${sCfg.bg} ${sCfg.color}`}>{sCfg.label}</span>
+                        {(t.source === "agency") && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600">Agency</span>
+                        )}
+                        {(t.source === "seed") && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">Seed</span>
+                        )}
                         {t.dueDate && (
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                             overdue ? "bg-red-100 text-red-600" : dueSoon ? "bg-amber-50 text-amber-600" : "bg-gray-100 text-gray-500"

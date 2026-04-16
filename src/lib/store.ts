@@ -1,4 +1,4 @@
-import type { AppData, Customer, Task, Priority, Status } from "./types";
+import type { AppData, Customer, Task, Priority, Status, TaskSource } from "./types";
 
 const STORAGE_KEY = "thetodo-data";
 
@@ -58,7 +58,7 @@ export function deleteCustomer(id: string): void {
   saveData(data);
 }
 
-export function addTask(customerId: string, title: string, opts?: { description?: string; priority?: Priority; dueDate?: string | null }): Task {
+export function addTask(customerId: string, title: string, opts?: { description?: string; priority?: Priority; dueDate?: string | null; source?: TaskSource }): Task {
   const data = loadData();
   const customerTasks = data.tasks.filter((t) => t.customerId === customerId);
   const task: Task = {
@@ -72,6 +72,7 @@ export function addTask(customerId: string, title: string, opts?: { description?
     createdAt: new Date().toISOString(),
     completedAt: null,
     order: customerTasks.length,
+    source: opts?.source || "manual",
   };
   data.tasks.push(task);
   saveData(data);

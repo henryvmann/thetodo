@@ -120,6 +120,7 @@ export function seedIfEmpty(): boolean {
     store.addTask(custId, t.title, {
       priority: t.priority,
       description: t.description,
+      source: "seed",
     });
   }
 
