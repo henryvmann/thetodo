@@ -42,6 +42,8 @@ const CUSTOMERS: SeedCustomerWithColor[] = [
   { name: "Swap", color: "#06b6d4", meta: { owner: "Henry Mann", stage: "1. Delivering Value", quarter: "Q2 2027", saasStartingARR: 3000, totalStartingRevenue: 3000, contractStartDate: null, productType: "None", healthScore: 86, healthLabel: "Healthy", healthColor: "green" } },
   { name: "Backbase", color: "#be185d", meta: { owner: "Henry Mann", stage: null, quarter: null, saasStartingARR: 0, totalStartingRevenue: 0, contractStartDate: null, productType: null, healthScore: 50, healthLabel: "At Risk", healthColor: "orange" } },
   { name: "Parity", color: "#78716c", meta: { owner: "Henry Mann", stage: null, quarter: null, saasStartingARR: 0, totalStartingRevenue: 0, contractStartDate: null, productType: null, healthScore: 50, healthLabel: "At Risk", healthColor: "orange" } },
+  { name: "Internal", color: "#1e293b", meta: { owner: "Henry Mann", stage: null, quarter: null, saasStartingARR: 0, totalStartingRevenue: 0, contractStartDate: null, productType: null, healthScore: 0, healthLabel: "Monitor", healthColor: "yellow" } },
+  { name: "Henry", color: "#f97316", meta: { owner: "Henry Mann", stage: null, quarter: null, saasStartingARR: 0, totalStartingRevenue: 0, contractStartDate: null, productType: null, healthScore: 0, healthLabel: "Monitor", healthColor: "yellow" } },
 ];
 
 const TASKS: SeedTask[] = [
@@ -85,9 +87,10 @@ const TASKS: SeedTask[] = [
   { customer: "Planful", title: "Pull performance report and package for renewal discussion", priority: "P1" },
   // HopSkipDrive
   { customer: "HopSkipDrive", title: "Inspect account setup and identify optimization opportunities", priority: "P2" },
-  // General
-  { customer: "_General", title: "Map out the LinkedIn Manus automation flow end-to-end", priority: "P2" },
-  { customer: "_General", title: "Submit outstanding expense reports", priority: "P3" },
+  // Internal
+  { customer: "Internal", title: "Map out the LinkedIn Manus automation flow end-to-end", priority: "P2" },
+  // Henry (personal / work-related)
+  { customer: "Henry", title: "Submit outstanding expense reports", priority: "P3" },
 ];
 
 export function seedIfEmpty(): boolean {
@@ -109,10 +112,6 @@ export function seedIfEmpty(): boolean {
     }
     customerMap.set(CUSTOMERS[i].name, c.id);
   }
-
-  // Add _General for non-customer tasks
-  const gen = store.addCustomer("_General");
-  customerMap.set("_General", gen.id);
 
   // Create tasks
   for (const t of TASKS) {
