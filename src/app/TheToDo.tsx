@@ -43,6 +43,28 @@ function isOverdue(task: Task): boolean {
   return new Date(task.dueDate + "T23:59:59") < new Date();
 }
 
+const ACTION_VERBS = new Set([
+  "add", "adjust", "analyze", "apply", "assign", "audit", "build", "cancel", "check", "clean",
+  "close", "complete", "configure", "confirm", "connect", "contact", "create", "debug", "define",
+  "delete", "deliver", "deploy", "design", "document", "download", "draft", "edit", "email",
+  "enable", "escalate", "estimate", "evaluate", "export", "extract", "file", "finalize", "find",
+  "fix", "flag", "follow", "generate", "get", "identify", "implement", "import", "inspect",
+  "install", "investigate", "launch", "list", "log", "map", "merge", "message", "migrate",
+  "monitor", "move", "notify", "onboard", "open", "optimize", "order", "organize", "outline",
+  "package", "pause", "pin", "plan", "post", "prepare", "present", "prioritize", "process",
+  "produce", "pull", "purchase", "push", "qa", "reach", "read", "reassign", "record", "refactor",
+  "remove", "rename", "replace", "reply", "report", "request", "research", "resolve", "respond",
+  "restart", "restructure", "review", "revise", "rewrite", "run", "save", "schedule", "scope",
+  "send", "set", "share", "ship", "sign", "simplify", "sketch", "source", "start", "stop",
+  "submit", "summarize", "swap", "sync", "tag", "test", "track", "transfer", "troubleshoot",
+  "turn", "unblock", "update", "upgrade", "upload", "validate", "verify", "write",
+]);
+
+function startsWithVerb(text: string): boolean {
+  const first = text.trim().split(/\s+/)[0]?.toLowerCase();
+  return ACTION_VERBS.has(first || "");
+}
+
 function isDueSoon(task: Task): boolean {
   if (!task.dueDate || task.status === "done") return false;
   const due = new Date(task.dueDate + "T23:59:59");
@@ -417,9 +439,14 @@ export default function TheToDo() {
                 value={newTaskTitle}
                 onChange={(e) => setNewTaskTitle(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) handleAddTask(); if (e.key === "Escape") setShowAddTask(false); }}
-                placeholder="Task title..."
+                placeholder="Start with a verb: Review, Build, Send, Schedule..."
                 className="w-full text-sm font-medium border-0 focus:outline-none placeholder:text-gray-400"
               />
+              {newTaskTitle.length > 2 && !startsWithVerb(newTaskTitle) && (
+                <p className="text-[10px] text-amber-600 mt-1">
+                  Tip: start with an action verb (Review, Build, Send, Schedule...) so you know exactly what to do
+                </p>
+              )}
               <textarea
                 value={newTaskDesc}
                 onChange={(e) => setNewTaskDesc(e.target.value)}
@@ -573,6 +600,11 @@ export default function TheToDo() {
                 onChange={(e) => { setEditingTask({ ...editingTask, title: e.target.value }); handleUpdateTask(editingTask.id, { title: e.target.value }); }}
                 className="w-full text-lg font-semibold border-0 focus:outline-none"
               />
+              {editingTask.title.length > 2 && !startsWithVerb(editingTask.title) && (
+                <p className="text-[10px] text-amber-600 mt-1">
+                  Tip: start with an action verb (Review, Build, Send, Schedule...)
+                </p>
+              )}
               <textarea
                 value={editingTask.description}
                 onChange={(e) => { setEditingTask({ ...editingTask, description: e.target.value }); handleUpdateTask(editingTask.id, { description: e.target.value }); }}

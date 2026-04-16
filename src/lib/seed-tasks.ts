@@ -8,62 +8,62 @@ interface SeedTask {
 
 const SEED_DATA: Record<string, SeedTask[]> = {
   DataRobot: [
-    { title: "Images, Ads, check call notes", priority: "P2" },
-    { title: "New Creative", priority: "P2" },
-    { title: "New Campaigns", priority: "P2" },
-    { title: "Slack Messages", priority: "P1" },
-    { title: "ChatGPT Ads", priority: "P2" },
+    { title: "Review latest call notes and extract action items", priority: "P2" },
+    { title: "Design new ad images and creative variants", priority: "P2" },
+    { title: "Launch new campaigns using updated creative", priority: "P2" },
+    { title: "Respond to open Slack messages from DataRobot team", priority: "P1" },
+    { title: "Build and launch ChatGPT-themed ad experiments", priority: "P2" },
   ],
   Backbase: [
-    { title: "Verify all reporting gaps are real", description: "Make sure that all reporting that we say can't be done actually can't be done", priority: "P1" },
+    { title: "Audit each reporting gap and confirm whether it's a real platform limitation or a config issue", priority: "P1", description: "Go through every item flagged as 'can't be done' and verify in-platform. Document which are real gaps vs. fixable." },
   ],
   Ambient: [
-    { title: "Check call for notes", priority: "P2" },
-    { title: "Send out EBR Request", priority: "P1" },
-    { title: "Webinar Prep", priority: "P2" },
-    { title: "Slides for Gil", priority: "P2" },
-    { title: "Schedule time with Alberto", priority: "P1" },
+    { title: "Review latest call recording and pull out key notes", priority: "P2" },
+    { title: "Send EBR request email to Ambient stakeholders", priority: "P1" },
+    { title: "Prepare webinar slide deck and talking points", priority: "P2" },
+    { title: "Build presentation slides for Gil's review", priority: "P2" },
+    { title: "Schedule a 30-min sync with Alberto to align on next steps", priority: "P1" },
   ],
   Parity: [
-    { title: "Read the document", priority: "P2" },
-    { title: "Find out about dynamic ad creative", priority: "P2" },
+    { title: "Read through the shared document and summarize key points", priority: "P2" },
+    { title: "Research dynamic ad creative capabilities and report findings", priority: "P2" },
   ],
   Crusoe: [
-    { title: "Facebook NVIDIA ads", priority: "P2" },
-    { title: "Make 4 campaign adjustments", priority: "P1" },
+    { title: "Set up Facebook NVIDIA ad campaigns with approved creative", priority: "P2" },
+    { title: "Apply the 4 requested adjustments to active campaigns", priority: "P1" },
   ],
   Monotype: [
-    { title: "Contract", priority: "P1" },
+    { title: "Review and finalize the Monotype renewal contract", priority: "P1" },
   ],
   Motus: [
-    { title: "Demo Campaigns", priority: "P2" },
-    { title: "Brand Awareness Campaigns", priority: "P2" },
-    { title: "Build out actual campaigns", priority: "P1" },
-    { title: "Build out Trends Report Campaign", priority: "P2" },
-    { title: "Review total spend ($125k)", priority: "P3" },
+    { title: "Build demo campaigns to showcase platform capabilities", priority: "P2" },
+    { title: "Create brand awareness campaign structure and targeting", priority: "P2" },
+    { title: "Launch production campaigns with full targeting and budget", priority: "P1" },
+    { title: "Build out Trends Report campaign with proper experiment setup", priority: "P2" },
+    { title: "Review current total spend ($125k) and flag any pacing issues", priority: "P3" },
   ],
   Zoom: [
-    { title: "Audiences created in Metadata/SFDC", priority: "P2" },
-    { title: "Removal of CX audiences", priority: "P1" },
-    { title: "Renewal", priority: "P1" },
+    { title: "Verify audiences are syncing correctly between Metadata and SFDC", priority: "P2" },
+    { title: "Remove CX audiences from active targeting", priority: "P1" },
+    { title: "Prepare renewal proposal and schedule renewal conversation", priority: "P1" },
   ],
   SafelyYou: [
-    { title: "Check work", priority: "P2" },
+    { title: "QA current campaign setup and flag anything off-track", priority: "P2" },
   ],
   DT: [
-    { title: "Crystal Comparison", priority: "P2" },
+    { title: "Run Crystal comparison analysis and document findings", priority: "P2" },
   ],
   Planful: [
-    { title: "Report for Renewal", priority: "P1" },
+    { title: "Pull performance report and package for renewal discussion", priority: "P1" },
   ],
   HSD: [
-    { title: "Inspect", priority: "P2" },
+    { title: "Inspect account setup and identify optimization opportunities", priority: "P2" },
   ],
 };
 
 const GENERAL_TASKS: SeedTask[] = [
-  { title: "LinkedIn Manus Flow", priority: "P2" },
-  { title: "Expenses", priority: "P3" },
+  { title: "Map out the LinkedIn Manus automation flow end-to-end", priority: "P2" },
+  { title: "Submit outstanding expense reports", priority: "P3" },
 ];
 
 export function seedTasks(): { customers: number; tasks: number } {
