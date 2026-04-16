@@ -126,6 +126,7 @@ export async function importFromMSD(msdUrl: string): Promise<{ added: number; up
 
   for (const mc of msdCustomers) {
     if (!mc.name) continue;
+    if (mc.owner && mc.owner !== "Henry Mann") continue;
     const meta: CustomerMeta = {
       owner: mc.owner,
       stage: mc.stage,
