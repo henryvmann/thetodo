@@ -106,6 +106,31 @@ export default function TheToDo() {
     setTasks(data.tasks);
   };
 
+  const handlePullAgency = async () => {
+    if (!selectedCustomer) return;
+    setParsing(true);
+    setParseError(null);
+    setParsedTasks([]);
+    const customerName = customers.find((c) => c.id === selectedCustomer)?.name || "";
+    try {
+      const resp = await fetch("/api/agency-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerName }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Agency pull failed");
+      setParsedTasks((data.tasks || []).map((t: { title: string; priority?: string; description?: string; dueDate?: string | null }) => ({
+        ...t,
+        priority: (t.priority as Priority) || "P2",
+        selected: true,
+      })));
+    } catch (e) {
+      setParseError(e instanceof Error ? e.message : "Unknown error");
+    }
+    setParsing(false);
+  };
+
   const handleParseNotes = async () => {
     if (!notesText.trim()) return;
     setParsing(true);
@@ -692,13 +717,25 @@ export default function TheToDo() {
 
               {parsedTasks.length === 0 ? (
                 <>
+                  {/* Agency pull — one click, auto-fills from call notes */}
+                  <div className="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100">
+                    <button
+                      onClick={handlePullAgency}
+                      disabled={parsing}
+                      className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50 transition-colors"
+                    >
+                      {parsing ? "Pulling from Agency..." : "Pull from Agency"}
+                    </button>
+                    <span className="text-xs text-gray-400">Auto-extract tasks from latest Agency call notes & overview</span>
+                  </div>
+
+                  <p className="text-[10px] text-gray-400 mb-1.5 font-medium uppercase tracking-wide">Or paste notes manually</p>
                   <textarea
                     value={notesText}
                     onChange={(e) => setNotesText(e.target.value)}
                     placeholder="Paste your call notes, meeting transcript, or any text with action items..."
-                    rows={10}
+                    rows={8}
                     className="w-full text-sm border border-gray-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none flex-1"
-                    autoFocus
                   />
                   {parseError && <p className="text-xs text-red-600 mt-2">{parseError}</p>}
                   <div className="flex justify-end gap-2 mt-4">
