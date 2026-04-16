@@ -86,6 +86,9 @@ export default function TheToDo() {
   const [newTaskDesc, setNewTaskDesc] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>("P2");
   const [newTaskDue, setNewTaskDue] = useState("");
+  const [showSyncAll, setShowSyncAll] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResults, setSyncResults] = useState<{ customer: string; tasks: { title: string; priority: string; description: string; dueDate: string | null; selected: boolean }[]; error?: string }[]>([]);
   const [showDropNotes, setShowDropNotes] = useState(false);
   const [notesText, setNotesText] = useState("");
   const [parsedTasks, setParsedTasks] = useState<{ title: string; priority: Priority; description?: string; dueDate?: string | null; selected: boolean }[]>([]);
@@ -106,6 +109,45 @@ export default function TheToDo() {
     const data = store.getAll();
     setCustomers(data.customers);
     setTasks(data.tasks);
+  };
+
+  const handleSyncAll = async () => {
+    setSyncLoading(true);
+    setSyncResults([]);
+    try {
+      const resp = await fetch("/api/agency-bulk");
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Sync failed");
+      setSyncResults((data.results || []).map((r: { customer: string; tasks: { title: string; priority: string; description: string; dueDate: string | null }[]; error?: string }) => ({
+        ...r,
+        tasks: r.tasks.map((t) => ({ ...t, selected: true })),
+      })));
+    } catch (e) {
+      setParseError(e instanceof Error ? e.message : "Unknown error");
+    }
+    setSyncLoading(false);
+  };
+
+  const handleAddSyncedTasks = () => {
+    const normalize = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
+    let added = 0;
+    for (const r of syncResults) {
+      const customer = customers.find((c) => normalize(c.name) === normalize(r.customer));
+      if (!customer) continue;
+      const selected = r.tasks.filter((t) => t.selected);
+      for (const t of selected) {
+        store.addTask(customer.id, t.title, {
+          priority: t.priority as Priority,
+          description: t.description,
+          dueDate: t.dueDate || null,
+          source: "agency",
+        });
+        added++;
+      }
+    }
+    refresh();
+    setShowSyncAll(false);
+    setSyncResults([]);
   };
 
   const handlePullAgency = async () => {
@@ -262,6 +304,17 @@ export default function TheToDo() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div />
+        <button
+          onClick={() => { setShowSyncAll(true); handleSyncAll(); }}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+        >
+          Sync All from Agency
+        </button>
+      </div>
+
       {/* Header stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -717,6 +770,119 @@ export default function TheToDo() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sync All modal */}
+      {showSyncAll && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
+            <div className="stripe-bar rounded-t-2xl" />
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Sync All from Agency</h2>
+                {syncLoading ? (
+                  <p className="text-xs text-gray-500">Pulling overviews from all accounts...</p>
+                ) : syncResults.length > 0 ? (
+                  <p className="text-xs text-gray-500">
+                    {syncResults.filter((r) => r.tasks.length > 0).length} accounts with tasks &middot;{" "}
+                    {syncResults.reduce((s, r) => s + r.tasks.filter((t) => t.selected).length, 0)} tasks selected
+                  </p>
+                ) : null}
+              </div>
+              <button onClick={() => { setShowSyncAll(false); setSyncResults([]); }} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+              {syncLoading && (
+                <div className="flex items-center justify-center py-20">
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <p className="text-sm text-gray-500 mt-3">Fetching Agency overviews...</p>
+                  </div>
+                </div>
+              )}
+
+              {!syncLoading && syncResults.length > 0 && (
+                <div className="space-y-4">
+                  {syncResults
+                    .filter((r) => r.tasks.length > 0)
+                    .sort((a, b) => b.tasks.length - a.tasks.length)
+                    .map((r) => {
+                      const customer = customers.find((c) => c.name.toLowerCase().replace(/[^a-z0-9]/g, "") === r.customer.toLowerCase().replace(/[^a-z0-9]/g, ""));
+                      const allSelected = r.tasks.every((t) => t.selected);
+                      return (
+                        <div key={r.customer} className="border border-gray-200 rounded-xl overflow-hidden">
+                          <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={allSelected}
+                                onChange={() => {
+                                  const newVal = !allSelected;
+                                  setSyncResults((prev) => prev.map((p) =>
+                                    p.customer === r.customer ? { ...p, tasks: p.tasks.map((t) => ({ ...t, selected: newVal })) } : p
+                                  ));
+                                }}
+                                className="accent-orange-500"
+                              />
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: customer?.color || "#666" }} />
+                              <span className="text-sm font-semibold">{r.customer}</span>
+                            </div>
+                            <span className="text-xs text-gray-400">{r.tasks.filter((t) => t.selected).length}/{r.tasks.length} tasks</span>
+                          </div>
+                          <div className="divide-y">
+                            {r.tasks.map((t, ti) => (
+                              <div key={ti} className={`flex items-start gap-3 px-4 py-2 ${t.selected ? "" : "opacity-40"}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={t.selected}
+                                  onChange={() => {
+                                    setSyncResults((prev) => prev.map((p) =>
+                                      p.customer === r.customer ? { ...p, tasks: p.tasks.map((tt, tti) => tti === ti ? { ...tt, selected: !tt.selected } : tt) } : p
+                                    ));
+                                  }}
+                                  className="mt-1 accent-orange-500"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-sm text-gray-900">{t.title}</span>
+                                  {t.description && <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {t.dueDate && <span className="text-[10px] text-gray-400">{t.dueDate}</span>}
+                                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                                    t.priority === "P1" ? "bg-red-50 text-red-600" : t.priority === "P3" ? "bg-gray-100 text-gray-500" : "bg-orange-50 text-orange-600"
+                                  }`}>{t.priority}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {syncResults.filter((r) => r.tasks.length === 0 && !r.error).length > 0 && (
+                    <div className="text-xs text-gray-400 mt-2">
+                      No tasks extracted for: {syncResults.filter((r) => r.tasks.length === 0).map((r) => r.customer).join(", ")}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {!syncLoading && syncResults.length > 0 && (
+              <div className="flex justify-between items-center px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
+                <button onClick={() => { setShowSyncAll(false); setSyncResults([]); }} className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+                <button
+                  onClick={handleAddSyncedTasks}
+                  disabled={syncResults.reduce((s, r) => s + r.tasks.filter((t) => t.selected).length, 0) === 0}
+                  className="px-6 py-2 rounded-lg text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                >
+                  Add {syncResults.reduce((s, r) => s + r.tasks.filter((t) => t.selected).length, 0)} Tasks
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

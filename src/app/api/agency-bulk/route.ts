@@ -1,0 +1,152 @@
+import { NextResponse } from "next/server";
+
+const AGENCY_BASE = "https://api.agency.inc/external";
+
+const DOMAIN_MAP: Record<string, string> = {
+  zoom: "zoom.us",
+  crusoe: "crusoe.ai",
+  "imagine software": "imaginesoftware.com",
+  "n-able": "n-able.com",
+  docebo: "docebo.com",
+  monotype: "monotype.com",
+  motus: "motus.com",
+  planful: "planful.com",
+  tvscientific: "tvscientific.com",
+  "direct travel": "dt.com",
+  ambient: "ambient.ai",
+  postscript: "postscript.io",
+  extrahop: "extrahop.com",
+  hopskipdrive: "hopskipdrive.com",
+  safelyyou: "safely-you.com",
+  datarobot: "datarobot.com",
+  touchlight: "touchlight.com",
+  faceup: "faceup.com",
+  pixaera: "pixaera.com",
+  workvivo: "workvivo.com",
+  "dsl digital": "dsldigital.com",
+  yotpo: "yotpo.com",
+  monograph: "monograph.io",
+  swap: "swap.com",
+  backbase: "backbase.com",
+  parity: "parity.com",
+};
+
+async function fetchOverview(domain: string, token: string): Promise<string | null> {
+  try {
+    const resp = await fetch(`${AGENCY_BASE}/v1/accounts/domain:${domain}/overview`, {
+      headers: { "X-API-Key": token },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const d = json.data || json;
+    if (d.status !== "available" || !d.content) return null;
+    return d.content;
+  } catch {
+    return null;
+  }
+}
+
+function parseOverview(overview: string): { title: string; priority: string; description: string; dueDate: string | null }[] {
+  const tasks: { title: string; priority: string; description: string; dueDate: string | null }[] = [];
+  const bullets = overview.split(/\n/).filter((line) => /^-\s/.test(line.trim()));
+
+  for (const bullet of bullets) {
+    let text = bullet
+      .replace(/^-\s+/, "")
+      .replace(/\*\*/g, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/\(ref:[^)]+\)/g, "")
+      .trim();
+
+    if (text.length < 10) continue;
+
+    let dueDate: string | null = null;
+    const dateMatch = text.match(/(?:before|by|until|deadline[:]?)\s+(\w+\s+\d{1,2}(?:st|nd|rd|th)?(?:[,]?\s*\d{4})?)/i);
+    if (dateMatch) {
+      try {
+        const parsed = new Date(dateMatch[1].replace(/(\d+)(st|nd|rd|th)/, "$1") + " 2026");
+        if (!isNaN(parsed.getTime())) dueDate = parsed.toISOString().split("T")[0];
+      } catch {}
+    }
+
+    let priority = "P2";
+    const lower = text.toLowerCase();
+    if (lower.includes("renewal") || lower.includes("urgent") || lower.includes("risk") || lower.includes("deadline") || lower.includes("before") || lower.includes("close date")) {
+      priority = "P1";
+    } else if (lower.includes("nice to have") || lower.includes("optional") || lower.includes("consider")) {
+      priority = "P3";
+    }
+
+    const firstWord = text.split(/\s+/)[0]?.toLowerCase() || "";
+    const verbs = new Set(["schedule", "confirm", "quantify", "prepare", "review", "send", "build", "create",
+      "follow", "check", "verify", "contact", "reach", "set", "update", "address", "discuss",
+      "assess", "evaluate", "investigate", "resolve", "track", "monitor", "escalate", "share",
+      "coordinate", "align", "present", "document", "finalize", "negotiate", "prioritize"]);
+    if (!verbs.has(firstWord)) text = `Follow up on: ${text}`;
+
+    let title = text;
+    let description = "";
+    const sinceIdx = text.search(/,\s*(since|as|because|given|noting)/i);
+    if (sinceIdx > 30) {
+      title = text.slice(0, sinceIdx).trim();
+      description = text.slice(sinceIdx + 1).trim();
+    } else if (text.length > 120) {
+      const splitAt = text.lastIndexOf(" ", 100);
+      if (splitAt > 40) {
+        title = text.slice(0, splitAt).trim();
+        description = text.slice(splitAt).trim();
+      }
+    }
+
+    tasks.push({ title, priority, description, dueDate });
+  }
+
+  if (tasks.length === 0) {
+    const sentences = overview.split(/[.!]\s+/).filter((s) => s.length > 20);
+    for (const s of sentences.slice(0, 3)) {
+      const clean = s.replace(/\*\*/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
+      if (clean.length < 15) continue;
+      tasks.push({ title: `Review: ${clean.slice(0, 100)}`, priority: "P2", description: "", dueDate: null });
+    }
+  }
+
+  return tasks;
+}
+
+export async function GET() {
+  try {
+    const agencyToken = process.env.AGENCY_API_TOKEN;
+    if (!agencyToken) return NextResponse.json({ error: "AGENCY_API_TOKEN not configured" }, { status: 500 });
+
+    const results: { customer: string; tasks: { title: string; priority: string; description: string; dueDate: string | null }[]; error?: string }[] = [];
+
+    // Process in batches of 5 to avoid hammering Agency API
+    const entries = Object.entries(DOMAIN_MAP);
+    for (let i = 0; i < entries.length; i += 5) {
+      const batch = entries.slice(i, i + 5);
+      const batchResults = await Promise.all(
+        batch.map(async ([name, domain]) => {
+          const overview = await fetchOverview(domain, agencyToken);
+          if (!overview) return { customer: name, tasks: [], error: "No overview available" };
+          return { customer: name, tasks: parseOverview(overview) };
+        })
+      );
+      results.push(...batchResults);
+    }
+
+    const withTasks = results.filter((r) => r.tasks.length > 0);
+    const totalTasks = withTasks.reduce((s, r) => s + r.tasks.length, 0);
+
+    return NextResponse.json({
+      results,
+      summary: {
+        total: entries.length,
+        withOverview: withTasks.length,
+        totalTasks,
+      },
+    });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
