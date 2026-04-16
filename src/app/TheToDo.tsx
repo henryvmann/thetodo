@@ -86,7 +86,7 @@ export default function TheToDo() {
     setImportMsg(null);
     try {
       const result = await store.importFromMSD(MSD_URL);
-      setImportMsg(`Imported ${result.added} new, updated ${result.updated} existing`);
+      setImportMsg(`+${result.added} new, ${result.updated} updated, ${result.removed} removed`);
       refresh();
     } catch (e) {
       setImportMsg(`Import failed: ${e instanceof Error ? e.message : "Unknown error"}`);

@@ -111,7 +111,7 @@ export interface MSDCustomer {
   healthColor: string;
 }
 
-export async function importFromMSD(msdUrl: string): Promise<{ added: number; updated: number }> {
+export async function importFromMSD(msdUrl: string, ownerFilter = "Henry Mann"): Promise<{ added: number; updated: number; removed: number }> {
   const resp = await fetch(`${msdUrl}/api/customers-export`);
   if (!resp.ok) throw new Error(`MSD API error: ${resp.status}`);
   const json = await resp.json();
@@ -121,12 +121,25 @@ export async function importFromMSD(msdUrl: string): Promise<{ added: number; up
   const colors = ["#f97316", "#ef4444", "#8b5cf6", "#06b6d4", "#10b981", "#ec4899", "#6366f1", "#f59e0b"];
   const normalize = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
 
+  // Remove customers that came from MSD but no longer match the owner filter.
+  // A customer "came from MSD" if it has metadata attached.
+  const validNames = new Set(
+    msdCustomers
+      .filter((mc) => mc.name && mc.owner === ownerFilter)
+      .map((mc) => normalize(mc.name))
+  );
+  const toRemove = data.customers.filter((c) => c.meta && !validNames.has(normalize(c.name)));
+  const removeIds = new Set(toRemove.map((c) => c.id));
+  data.customers = data.customers.filter((c) => !removeIds.has(c.id));
+  data.tasks = data.tasks.filter((t) => !removeIds.has(t.customerId));
+  const removed = toRemove.length;
+
   let added = 0;
   let updated = 0;
 
   for (const mc of msdCustomers) {
     if (!mc.name) continue;
-    if (mc.owner && mc.owner !== "Henry Mann") continue;
+    if (mc.owner !== ownerFilter) continue;
     const meta: CustomerMeta = {
       owner: mc.owner,
       stage: mc.stage,
@@ -157,5 +170,5 @@ export async function importFromMSD(msdUrl: string): Promise<{ added: number; up
   }
 
   saveData(data);
-  return { added, updated };
+  return { added, updated, removed };
 }
