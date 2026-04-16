@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 
 const AGENCY_BASE = "https://api.agency.inc/external";
 
@@ -52,66 +51,108 @@ async function fetchAgencyOverview(domain: string, token: string): Promise<strin
   }
 }
 
+// Extract action items from Agency markdown overview without AI.
+// Agency overviews use "- **Verb ..." bullet points for action items.
+function parseOverviewToTasks(overview: string, customerName: string): { title: string; priority: string; description: string; dueDate: string | null }[] {
+  const tasks: { title: string; priority: string; description: string; dueDate: string | null }[] = [];
+
+  // Split into bullet points (Agency uses "- " for action items)
+  const bullets = overview.split(/\n/).filter((line) => /^-\s/.test(line.trim()));
+
+  for (const bullet of bullets) {
+    // Strip markdown: bold, links, refs
+    let text = bullet
+      .replace(/^-\s+/, "")
+      .replace(/\*\*/g, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // [text](url) → text
+      .replace(/\(ref:[^)]+\)/g, "")
+      .trim();
+
+    if (text.length < 10) continue;
+
+    // Extract dates (April 21st, May 1st, April 30th, etc.)
+    let dueDate: string | null = null;
+    const dateMatch = text.match(/(?:before|by|until|deadline[:]?)\s+(\w+\s+\d{1,2}(?:st|nd|rd|th)?(?:[,]?\s*\d{4})?)/i);
+    if (dateMatch) {
+      try {
+        const parsed = new Date(dateMatch[1].replace(/(\d+)(st|nd|rd|th)/, "$1") + " 2026");
+        if (!isNaN(parsed.getTime())) {
+          dueDate = parsed.toISOString().split("T")[0];
+        }
+      } catch {}
+    }
+
+    // Determine priority from keywords
+    let priority = "P2";
+    const lower = text.toLowerCase();
+    if (lower.includes("renewal") || lower.includes("urgent") || lower.includes("risk") || lower.includes("deadline") || lower.includes("before") || lower.includes("close date")) {
+      priority = "P1";
+    } else if (lower.includes("nice to have") || lower.includes("optional") || lower.includes("consider")) {
+      priority = "P3";
+    }
+
+    // Ensure it starts with a verb — if not, prepend "Follow up on"
+    const firstWord = text.split(/\s+/)[0]?.toLowerCase() || "";
+    const verbs = new Set(["schedule", "confirm", "quantify", "prepare", "review", "send", "build", "create",
+      "follow", "check", "verify", "contact", "reach", "set", "update", "address", "discuss",
+      "assess", "evaluate", "investigate", "resolve", "track", "monitor", "escalate", "share",
+      "coordinate", "align", "present", "document", "finalize", "negotiate", "prioritize"]);
+    if (!verbs.has(firstWord)) {
+      text = `Follow up on: ${text}`;
+    }
+
+    // Split very long items — keep main title short, rest goes to description
+    let title = text;
+    let description = "";
+    const sinceIdx = text.search(/,\s*(since|as|because|given|noting)/i);
+    if (sinceIdx > 30) {
+      title = text.slice(0, sinceIdx).trim();
+      description = text.slice(sinceIdx + 1).trim();
+    } else if (text.length > 120) {
+      const splitAt = text.lastIndexOf(" ", 100);
+      if (splitAt > 40) {
+        title = text.slice(0, splitAt).trim();
+        description = text.slice(splitAt).trim();
+      }
+    }
+
+    tasks.push({ title, priority, description, dueDate });
+  }
+
+  // If no bullets found, try to extract from the paragraph text
+  if (tasks.length === 0) {
+    const sentences = overview.split(/[.!]\s+/).filter((s) => s.length > 20);
+    for (const s of sentences.slice(0, 5)) {
+      const clean = s.replace(/\*\*/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
+      if (clean.length < 15) continue;
+      tasks.push({
+        title: `Review: ${clean.slice(0, 100)}`,
+        priority: "P2",
+        description: clean.length > 100 ? clean : "",
+        dueDate: null,
+      });
+    }
+  }
+
+  return tasks;
+}
+
 export async function POST(request: NextRequest) {
   try {
-  const agencyToken = process.env.AGENCY_API_TOKEN;
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const agencyToken = process.env.AGENCY_API_TOKEN;
+    if (!agencyToken) return NextResponse.json({ error: "AGENCY_API_TOKEN not configured" }, { status: 500 });
 
-  if (!agencyToken) return NextResponse.json({ error: "AGENCY_API_TOKEN not configured" }, { status: 500 });
-  if (!anthropicKey) return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
+    const { customerName } = await request.json();
+    if (!customerName) return NextResponse.json({ error: "Missing customerName" }, { status: 400 });
 
-  const { customerName } = await request.json();
-  if (!customerName) return NextResponse.json({ error: "Missing customerName" }, { status: 400 });
+    const domain = getDomain(customerName);
+    if (!domain) return NextResponse.json({ error: `No domain mapping for "${customerName}"` }, { status: 404 });
 
-  const domain = getDomain(customerName);
-  if (!domain) return NextResponse.json({ error: `No domain mapping for "${customerName}"` }, { status: 404 });
+    const overview = await fetchAgencyOverview(domain, agencyToken);
+    if (!overview) return NextResponse.json({ error: `No Agency overview available for ${customerName}` }, { status: 404 });
 
-  const overview = await fetchAgencyOverview(domain, agencyToken);
-  if (!overview) return NextResponse.json({ error: `No Agency overview available for ${customerName}` }, { status: 404 });
-
-  const client = new Anthropic({ apiKey: anthropicKey });
-
-  const message = await client.messages.create({
-    model: "claude-3-5-sonnet-latest",
-    max_tokens: 2048,
-    messages: [
-      {
-        role: "user",
-        content: `You are a task extraction assistant. Extract actionable to-do items from this Agency account overview for "${customerName}".
-
-This is an AI-generated summary of recent calls, emails, and account activity. Focus on:
-- Follow-up items mentioned in call notes
-- Action items assigned to the CSM/account owner
-- Pending deliverables or commitments
-- Renewal-related tasks
-- Campaign or technical tasks mentioned
-- Anything that needs attention or has a deadline
-
-Rules:
-- Each task MUST start with an action verb (Review, Build, Send, Schedule, Create, Follow up, Prepare, etc.)
-- Each task should be self-contained — someone reading it should know exactly what to do
-- Include specific details (names, dates, products, numbers) from the overview
-- Assign priority: P1 (urgent/blocking/renewal-related), P2 (normal follow-ups), P3 (nice-to-have)
-- If a date is mentioned or implied, include it as dueDate in ISO format (YYYY-MM-DD), otherwise null
-- Don't create tasks for things that are clearly already done/completed
-- Return ONLY valid JSON array, no markdown, no explanation
-
-Return format:
-[
-  { "title": "verb-first task title", "priority": "P1", "description": "optional extra context", "dueDate": null }
-]
-
-Agency Overview:
-${overview}`,
-      },
-    ],
-  });
-
-  const text = message.content[0].type === "text" ? message.content[0].text : "";
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) return NextResponse.json({ error: "Could not parse AI response", raw: text }, { status: 500 });
-  const tasks = JSON.parse(jsonMatch[0]);
-  return NextResponse.json({ tasks, source: "agency", overview: overview.slice(0, 500) + "..." });
+    const tasks = parseOverviewToTasks(overview, customerName);
+    return NextResponse.json({ tasks, source: "agency" });
 
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
