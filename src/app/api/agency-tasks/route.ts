@@ -43,9 +43,10 @@ async function fetchAgencyOverview(domain: string, token: string): Promise<strin
       signal: AbortSignal.timeout(15000),
     });
     if (!resp.ok) return null;
-    const data = await resp.json();
-    if (data.status !== "available" || !data.content) return null;
-    return data.content;
+    const json = await resp.json();
+    const d = json.data || json;
+    if (d.status !== "available" || !d.content) return null;
+    return d.content;
   } catch {
     return null;
   }
