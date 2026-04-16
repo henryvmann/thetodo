@@ -23,13 +23,17 @@ export function getAll(): AppData {
   return loadData();
 }
 
+function generateColor(index: number): string {
+  const hue = (index * 137.508) % 360; // golden angle for max spread
+  return `hsl(${Math.round(hue)}, 65%, 45%)`;
+}
+
 export function addCustomer(name: string): Customer {
   const data = loadData();
-  const colors = ["#f97316", "#ef4444", "#8b5cf6", "#06b6d4", "#10b981", "#ec4899", "#6366f1", "#f59e0b"];
   const customer: Customer = {
     id: generateId(),
     name,
-    color: colors[data.customers.length % colors.length],
+    color: generateColor(data.customers.length),
     createdAt: new Date().toISOString(),
   };
   data.customers.push(customer);
