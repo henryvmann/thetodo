@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Customer, Task, Priority, Status } from "@/lib/types";
 import * as store from "@/lib/store";
+import { seedTasks } from "@/lib/seed-tasks";
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; border: string; bg: string }> = {
   P1: { label: "P1 — Critical", color: "text-red-600", border: "border-l-red-500", bg: "bg-red-50" },
@@ -79,6 +80,13 @@ export default function TheToDo() {
     const data = store.getAll();
     setCustomers(data.customers);
     setTasks(data.tasks);
+  };
+
+  const handleSeedTasks = () => {
+    const result = seedTasks();
+    setImportMsg(`Seeded ${result.tasks} tasks across ${result.customers} customers`);
+    refresh();
+    setTimeout(() => setImportMsg(null), 5000);
   };
 
   const handleImportMSD = async () => {
@@ -206,6 +214,13 @@ export default function TheToDo() {
             <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
               <h2 className="text-sm font-semibold text-gray-900">Customers</h2>
               <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleSeedTasks}
+                  className="text-[10px] font-medium px-2 py-1 rounded bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+                  title="Load tasks from your to-do list"
+                >
+                  Seed Tasks
+                </button>
                 <button
                   onClick={handleImportMSD}
                   disabled={importing}
