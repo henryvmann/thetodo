@@ -317,19 +317,19 @@ export default function TheToDo() {
 
       {/* Header stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-white/80 backdrop-blur rounded-xl border border-silver-200 p-4 shadow-sm">
           <p className="text-xs text-gray-500 font-medium">Total Tasks</p>
           <p className="text-2xl font-bold mt-1">{allCounts.total}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-white/80 backdrop-blur rounded-xl border border-silver-200 p-4 shadow-sm">
           <p className="text-xs text-gray-500 font-medium">Completed</p>
           <p className="text-2xl font-bold text-green-600 mt-1">{allCounts.done}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-white/80 backdrop-blur rounded-xl border border-silver-200 p-4 shadow-sm">
           <p className="text-xs text-gray-500 font-medium">In Progress</p>
           <p className="text-2xl font-bold text-blue-600 mt-1">{tasks.filter((t) => t.status === "in-progress").length}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-white/80 backdrop-blur rounded-xl border border-silver-200 p-4 shadow-sm">
           <p className="text-xs text-gray-500 font-medium">Overdue</p>
           <p className={`text-2xl font-bold mt-1 ${allCounts.overdue > 0 ? "text-red-600" : "text-gray-300"}`}>{allCounts.overdue}</p>
         </div>
@@ -338,7 +338,7 @@ export default function TheToDo() {
       <div className="flex gap-6">
         {/* Sidebar — customers */}
         <div className="w-64 shrink-0">
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white/80 backdrop-blur rounded-xl border border-silver-200 overflow-hidden shadow-sm">
             <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
               <h2 className="text-sm font-semibold text-gray-900">Customers</h2>
               <button
@@ -443,7 +443,7 @@ export default function TheToDo() {
             const m = c?.meta;
             if (!c || !m) return null;
             return (
-              <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+              <div className="bg-white/80 backdrop-blur rounded-xl border border-silver-200 p-4 shadow-sm mb-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <h2 className="text-lg font-bold text-gray-900">{c.name}</h2>
@@ -591,7 +591,7 @@ export default function TheToDo() {
               return (
                 <div
                   key={t.id}
-                  className={`task-card bg-white rounded-xl border border-gray-200 border-l-4 ${pCfg.border} ${t.status === "done" ? "opacity-60" : ""}`}
+                  className={`task-card bg-white/80 backdrop-blur rounded-xl border border-silver-200 border-l-4 shadow-sm ${pCfg.border} ${t.status === "done" ? "opacity-60" : ""}`}
                 >
                   <div className="flex items-start gap-3 px-4 py-3">
                     {/* Status toggle */}
