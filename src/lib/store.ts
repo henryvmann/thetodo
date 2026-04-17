@@ -51,6 +51,21 @@ export function updateCustomer(id: string, patch: Partial<Pick<Customer, "name" 
   }
 }
 
+export function reorderCustomers(orderedIds: string[]): void {
+  const data = loadData();
+  const map = new Map(data.customers.map((c) => [c.id, c]));
+  const reordered: typeof data.customers = [];
+  for (const id of orderedIds) {
+    const c = map.get(id);
+    if (c) reordered.push(c);
+  }
+  for (const c of data.customers) {
+    if (!orderedIds.includes(c.id)) reordered.push(c);
+  }
+  data.customers = reordered;
+  saveData(data);
+}
+
 export function deleteCustomer(id: string): void {
   const data = loadData();
   data.customers = data.customers.filter((c) => c.id !== id);

@@ -95,6 +95,8 @@ export default function TheToDo() {
   const [parsedSource, setParsedSource] = useState<"agency" | "manual">("manual");
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [dragCustomerId, setDragCustomerId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const addCustomerRef = useRef<HTMLInputElement>(null);
   const addTaskRef = useRef<HTMLInputElement>(null);
 
@@ -225,6 +227,31 @@ export default function TheToDo() {
     setNewCustomerName("");
     setShowAddCustomer(false);
     refresh();
+  };
+
+  const handleMoveCustomer = (id: string, direction: "up" | "down") => {
+    const idx = customers.findIndex((c) => c.id === id);
+    if (idx < 0) return;
+    const newIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= customers.length) return;
+    const reordered = [...customers];
+    [reordered[idx], reordered[newIdx]] = [reordered[newIdx], reordered[idx]];
+    store.reorderCustomers(reordered.map((c) => c.id));
+    setCustomers(reordered);
+  };
+
+  const handleDragDrop = (targetId: string) => {
+    if (!dragCustomerId || dragCustomerId === targetId) return;
+    const fromIdx = customers.findIndex((c) => c.id === dragCustomerId);
+    const toIdx = customers.findIndex((c) => c.id === targetId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const reordered = [...customers];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    store.reorderCustomers(reordered.map((c) => c.id));
+    setCustomers(reordered);
+    setDragCustomerId(null);
+    setDragOverId(null);
   };
 
   const handleDeleteCustomer = (id: string) => {
@@ -382,25 +409,48 @@ export default function TheToDo() {
                 <span className="text-xs text-gray-400">{tasks.length}</span>
               </button>
 
-              {customers.map((c) => {
+              {customers.map((c, ci) => {
                 const counts = taskCounts(c.id);
                 const m = c.meta;
+                const isDragOver = dragOverId === c.id && dragCustomerId !== c.id;
                 return (
                   <div
                     key={c.id}
-                    className={`group cursor-pointer hover:bg-gray-50 transition-colors ${
+                    draggable
+                    onDragStart={() => setDragCustomerId(c.id)}
+                    onDragEnd={() => { setDragCustomerId(null); setDragOverId(null); }}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverId(c.id); }}
+                    onDragLeave={() => setDragOverId(null)}
+                    onDrop={(e) => { e.preventDefault(); handleDragDrop(c.id); }}
+                    className={`group cursor-pointer transition-colors ${
+                      isDragOver ? "border-t-2 border-t-orange-500" : ""
+                    } ${dragCustomerId === c.id ? "opacity-40" : ""} ${
                       selectedCustomer === c.id ? "bg-orange-50 border-l-4 font-medium" : "border-l-4 border-l-transparent"
-                    }`}
+                    } hover:bg-gray-50`}
                     style={selectedCustomer === c.id ? { borderLeftColor: c.color } : undefined}
                     onClick={() => setSelectedCustomer(c.id)}
                   >
                     <div className="flex items-center justify-between px-4 py-2 text-sm">
                       <div className="flex items-center gap-2 min-w-0">
+                        {/* Drag handle */}
+                        <span className="text-gray-300 cursor-grab active:cursor-grabbing text-xs opacity-0 group-hover:opacity-100 select-none" title="Drag to reorder">⠿</span>
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
                         <span className="truncate">{c.name}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400">{counts.done}/{counts.total}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-400 mr-1">{counts.done}/{counts.total}</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleMoveCustomer(c.id, "up"); }}
+                          disabled={ci === 0}
+                          className="text-gray-300 hover:text-orange-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+                          title="Move up"
+                        >▲</button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleMoveCustomer(c.id, "down"); }}
+                          disabled={ci === customers.length - 1}
+                          className="text-gray-300 hover:text-orange-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+                          title="Move down"
+                        >▼</button>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(c.id); }}
                           className="text-gray-300 hover:text-red-500 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
