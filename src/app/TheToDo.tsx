@@ -921,7 +921,8 @@ export default function TheToDo() {
                   <textarea
                     value={notesText}
                     onChange={(e) => setNotesText(e.target.value)}
-                    placeholder="Paste your call notes, meeting transcript, or any text with action items..."
+                    onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleParseNotes(); }}
+                    placeholder="Paste your call notes, meeting transcript, or any text with action items...&#10;&#10;Press Cmd+Enter to extract tasks"
                     rows={8}
                     className="w-full text-sm border border-gray-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none flex-1"
                   />
