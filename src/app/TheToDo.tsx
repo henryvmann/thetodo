@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { Customer, Task, Priority, Status, TaskSource } from "@/lib/types";
+import type { Customer, Task, Priority, Status, TaskSource, TimeTag } from "@/lib/types";
 import * as store from "@/lib/store";
 import { seedIfEmpty } from "@/lib/seed-tasks";
 
@@ -78,6 +78,7 @@ export default function TheToDo() {
   const [filterStatus, setFilterStatus] = useState<Status | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
   const [filterSource, setFilterSource] = useState<TaskSource | "all">("all");
+  const [filterTimeTag, setFilterTimeTag] = useState<TimeTag | "all">("all");
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -132,18 +133,22 @@ export default function TheToDo() {
 
   const handleAddSyncedTasks = () => {
     const normalize = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const existingTitles = new Set(tasks.map((t) => normalize(t.title)));
     let added = 0;
+    let skipped = 0;
     for (const r of syncResults) {
       const customer = customers.find((c) => normalize(c.name) === normalize(r.customer));
       if (!customer) continue;
       const selected = r.tasks.filter((t) => t.selected);
       for (const t of selected) {
+        if (existingTitles.has(normalize(t.title))) { skipped++; continue; }
         store.addTask(customer.id, t.title, {
           priority: t.priority as Priority,
           description: t.description,
           dueDate: t.dueDate || null,
           source: "agency",
         });
+        existingTitles.add(normalize(t.title));
         added++;
       }
     }
@@ -206,14 +211,18 @@ export default function TheToDo() {
 
   const handleAddParsedTasks = () => {
     if (!selectedCustomer) return;
+    const normalize = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const existingTitles = new Set(tasks.map((t) => normalize(t.title)));
     const toAdd = parsedTasks.filter((t) => t.selected);
     for (const t of toAdd) {
+      if (existingTitles.has(normalize(t.title))) continue;
       store.addTask(selectedCustomer, t.title, {
         priority: t.priority,
         description: t.description,
         dueDate: t.dueDate || null,
         source: parsedSource,
       });
+      existingTitles.add(normalize(t.title));
     }
     refresh();
     setShowDropNotes(false);
@@ -303,9 +312,12 @@ export default function TheToDo() {
     .filter((t) => filterStatus === "all" || t.status === filterStatus)
     .filter((t) => filterPriority === "all" || t.priority === filterPriority)
     .filter((t) => filterSource === "all" || (t.source || "seed") === filterSource)
+    .filter((t) => filterTimeTag === "all" || (t.timeTag || null) === filterTimeTag)
     .sort((a, b) => {
       if (a.status === "done" && b.status !== "done") return 1;
       if (a.status !== "done" && b.status === "done") return -1;
+      const tOrd = (t: TimeTag | undefined) => t === "today" ? 0 : t === "this-week" ? 1 : 2;
+      if (tOrd(a.timeTag) !== tOrd(b.timeTag)) return tOrd(a.timeTag) - tOrd(b.timeTag);
       const pOrd = { P1: 0, P2: 1, P3: 2 };
       if (pOrd[a.priority] !== pOrd[b.priority]) return pOrd[a.priority] - pOrd[b.priority];
       return a.order - b.order;
@@ -562,6 +574,21 @@ export default function TheToDo() {
                 <option value="agency">Agency</option>
                 <option value="seed">Seed</option>
               </select>
+              <div className="flex items-center gap-1 ml-1">
+                {(["all", "today", "this-week"] as const).map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => setFilterTimeTag(tag)}
+                    className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
+                      filterTimeTag === tag
+                        ? tag === "today" ? "bg-orange-500 text-white" : tag === "this-week" ? "bg-orange-200 text-orange-800" : "bg-gray-200 text-gray-700"
+                        : "text-gray-400 hover:bg-gray-100"
+                    }`}
+                  >
+                    {tag === "all" ? "All" : tag === "today" ? "Today" : "This Week"}
+                  </button>
+                ))}
+              </div>
               <span className="text-xs text-gray-400 ml-2">{filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""}</span>
             </div>
             {selectedCustomer && (
@@ -700,8 +727,26 @@ export default function TheToDo() {
                       </div>
                     </div>
 
-                    {/* Actions */}
+                    {/* Time tag + Actions */}
                     <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleUpdateTask(t.id, { timeTag: t.timeTag === "today" ? null : "today" }); }}
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors ${
+                          t.timeTag === "today" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-600"
+                        }`}
+                        title="Tag as Today"
+                      >
+                        Today
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleUpdateTask(t.id, { timeTag: t.timeTag === "this-week" ? null : "this-week" }); }}
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors ${
+                          t.timeTag === "this-week" ? "bg-orange-200 text-orange-800" : "bg-gray-100 text-gray-400 hover:bg-orange-50 hover:text-orange-600"
+                        }`}
+                        title="Tag as This Week"
+                      >
+                        Week
+                      </button>
                       <button
                         onClick={() => setEditingTask(t)}
                         className="text-gray-300 hover:text-orange-500 p-1 transition-colors"
@@ -770,6 +815,22 @@ export default function TheToDo() {
                 rows={3}
                 className="w-full mt-3 text-sm text-gray-600 border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
               />
+              <div className="flex items-center gap-2 mt-4">
+                <label className="text-xs text-gray-500 font-medium">Focus:</label>
+                {([null, "today", "this-week"] as const).map((tag) => (
+                  <button
+                    key={tag || "none"}
+                    onClick={() => { setEditingTask({ ...editingTask, timeTag: tag }); handleUpdateTask(editingTask.id, { timeTag: tag }); }}
+                    className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${
+                      editingTask.timeTag === tag
+                        ? tag === "today" ? "bg-orange-500 text-white" : tag === "this-week" ? "bg-orange-200 text-orange-800" : "bg-gray-200 text-gray-700"
+                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                    }`}
+                  >
+                    {tag === null ? "None" : tag === "today" ? "Today" : "This Week"}
+                  </button>
+                ))}
+              </div>
               <div className="grid grid-cols-3 gap-3 mt-4">
                 <div>
                   <label className="text-xs text-gray-500 font-medium block mb-1">Priority</label>
@@ -854,7 +915,10 @@ export default function TheToDo() {
                 </div>
               )}
 
-              {!syncLoading && syncResults.length > 0 && (
+              {!syncLoading && syncResults.length > 0 && (() => {
+                const normTitle = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
+                const existingSet = new Set(tasks.map((t) => normTitle(t.title)));
+                return (
                 <div className="space-y-4">
                   {syncResults
                     .filter((r) => r.tasks.length > 0)
@@ -884,7 +948,7 @@ export default function TheToDo() {
                           </div>
                           <div className="divide-y">
                             {r.tasks.map((t, ti) => (
-                              <div key={ti} className={`flex items-start gap-3 px-4 py-2 ${t.selected ? "" : "opacity-40"}`}>
+                              <div key={ti} className={`flex items-start gap-3 px-4 py-2 ${existingSet.has(normTitle(t.title)) ? "opacity-30 line-through" : t.selected ? "" : "opacity-40"}`}>
                                 <input
                                   type="checkbox"
                                   checked={t.selected}
@@ -897,6 +961,9 @@ export default function TheToDo() {
                                 />
                                 <div className="flex-1 min-w-0">
                                   <span className="text-sm text-gray-900">{t.title}</span>
+                                  {existingSet.has(normTitle(t.title)) && (
+                                    <span className="text-[10px] font-medium text-gray-400 ml-2">already exists</span>
+                                  )}
                                   {t.description && <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>}
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
@@ -918,7 +985,8 @@ export default function TheToDo() {
                     </div>
                   )}
                 </div>
-              )}
+              );
+              })()}
             </div>
 
             {!syncLoading && syncResults.length > 0 && (

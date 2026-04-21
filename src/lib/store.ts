@@ -1,4 +1,4 @@
-import type { AppData, Customer, Task, Priority, Status, TaskSource } from "./types";
+import type { AppData, Customer, Task, Priority, Status, TaskSource, TimeTag } from "./types";
 
 const STORAGE_KEY = "thetodo-data";
 
@@ -88,13 +88,14 @@ export function addTask(customerId: string, title: string, opts?: { description?
     completedAt: null,
     order: customerTasks.length,
     source: opts?.source || "manual",
+    timeTag: null,
   };
   data.tasks.push(task);
   saveData(data);
   return task;
 }
 
-export function updateTask(id: string, patch: Partial<Pick<Task, "title" | "description" | "priority" | "status" | "dueDate" | "order">>): void {
+export function updateTask(id: string, patch: Partial<Pick<Task, "title" | "description" | "priority" | "status" | "dueDate" | "order" | "timeTag">>): void {
   const data = loadData();
   const t = data.tasks.find((t) => t.id === id);
   if (t) {
@@ -103,6 +104,7 @@ export function updateTask(id: string, patch: Partial<Pick<Task, "title" | "desc
     if (patch.priority !== undefined) t.priority = patch.priority;
     if (patch.dueDate !== undefined) t.dueDate = patch.dueDate;
     if (patch.order !== undefined) t.order = patch.order;
+    if (patch.timeTag !== undefined) t.timeTag = patch.timeTag;
     if (patch.status !== undefined) {
       t.status = patch.status;
       t.completedAt = patch.status === "done" ? new Date().toISOString() : null;
