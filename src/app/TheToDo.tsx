@@ -107,6 +107,7 @@ export default function TheToDo() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverLane, setDragOverLane] = useState<string | null>(null);
+  const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
   const addCustomerRef = useRef<HTMLInputElement>(null);
   const addTaskRef = useRef<HTMLInputElement>(null);
 
@@ -510,17 +511,47 @@ export default function TheToDo() {
           { tag: null, label: "Untagged", color: "border-gray-300 border-dashed bg-transparent", dropColor: "ring-gray-400 bg-gray-50/60", tasks: openTasks.filter((t) => !t.timeTag) },
         ];
 
-        const renderFocusTask = (t: Task, isUntagged = false) => {
+        const handleFocusTaskDrop = (targetTaskId: string, laneTasks: Task[], laneTag: TimeTag) => {
+          if (!dragTaskId || dragTaskId === targetTaskId) return;
+          const draggedTask = tasks.find((t) => t.id === dragTaskId);
+          if (!draggedTask) return;
+
+          // If moving to a different lane, update the tag
+          if (draggedTask.timeTag !== laneTag) {
+            handleUpdateTask(dragTaskId, { timeTag: laneTag });
+          }
+
+          // Reorder: place the dragged task at the target's position
+          const sortedIds = laneTasks.map((t) => t.id).filter((id) => id !== dragTaskId);
+          const targetIdx = sortedIds.indexOf(targetTaskId);
+          sortedIds.splice(targetIdx, 0, dragTaskId);
+
+          // Update order values to match visual order
+          sortedIds.forEach((id, i) => {
+            store.updateTask(id, { order: i });
+          });
+          refresh();
+          setDragTaskId(null);
+          setDragOverTaskId(null);
+          setDragOverLane(null);
+        };
+
+        const renderFocusTask = (t: Task, isUntagged = false, laneTasks: Task[] = [], laneTag: TimeTag = null) => {
           const customer = customers.find((c) => c.id === t.customerId);
           const pCfg = PRIORITY_CONFIG[t.priority];
+          const isDropTarget = dragOverTaskId === t.id && dragTaskId !== t.id;
           return (
             <div
               key={t.id}
               draggable
               onDragStart={() => setDragTaskId(t.id)}
-              onDragEnd={() => { setDragTaskId(null); setDragOverLane(null); }}
+              onDragEnd={() => { setDragTaskId(null); setDragOverLane(null); setDragOverTaskId(null); }}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverTaskId(t.id); setDragOverLane(laneTag as string || "untagged"); }}
+              onDragLeave={() => setDragOverTaskId(null)}
+              onDrop={(e) => { e.preventDefault(); e.stopPropagation(); handleFocusTaskDrop(t.id, laneTasks, laneTag); }}
               className={`flex items-center gap-3 rounded-lg border px-3 py-2 cursor-grab active:cursor-grabbing transition-all ${
                 dragTaskId === t.id ? "opacity-40 scale-95" : ""
+              } ${isDropTarget ? "border-t-2 border-t-orange-500" : ""
               } ${isUntagged ? "bg-white/60 border-gray-200" : "bg-white/80 backdrop-blur border-silver-200 shadow-sm"}`}
             >
               <button
@@ -592,12 +623,10 @@ export default function TheToDo() {
                   </p>
                 ) : (
                   <div className="space-y-1.5">
-                    {g.tasks
-                      .sort((a, b) => {
-                        const pOrd = { P1: 0, P2: 1, P3: 2 };
-                        return pOrd[a.priority] - pOrd[b.priority];
-                      })
-                      .map((t) => renderFocusTask(t, !g.tag))}
+                    {(() => {
+                      const sorted = [...g.tasks].sort((a, b) => a.order - b.order);
+                      return sorted.map((t) => renderFocusTask(t, !g.tag, sorted, g.tag));
+                    })()}
                   </div>
                 )}
               </div>
