@@ -75,6 +75,7 @@ export default function TheToDo() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"customers" | "focus">("customers");
   const [filterStatus, setFilterStatus] = useState<Status | "all">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
   const [filterSource, setFilterSource] = useState<TaskSource | "all">("all");
@@ -316,7 +317,7 @@ export default function TheToDo() {
     .sort((a, b) => {
       if (a.status === "done" && b.status !== "done") return 1;
       if (a.status !== "done" && b.status === "done") return -1;
-      const tOrd = (t: TimeTag | undefined) => t === "today" ? 0 : t === "this-week" ? 1 : 2;
+      const tOrd = (t: TimeTag | undefined) => t === "today" ? 0 : t === "this-week" ? 1 : t === "soon" ? 2 : 3;
       if (tOrd(a.timeTag) !== tOrd(b.timeTag)) return tOrd(a.timeTag) - tOrd(b.timeTag);
       const pOrd = { P1: 0, P2: 1, P3: 2 };
       if (pOrd[a.priority] !== pOrd[b.priority]) return pOrd[a.priority] - pOrd[b.priority];
@@ -345,7 +346,20 @@ export default function TheToDo() {
     <div className="max-w-7xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <div />
+        <div className="flex items-center gap-1 bg-white/80 backdrop-blur rounded-lg border border-silver-200 p-0.5">
+          <button
+            onClick={() => setViewMode("customers")}
+            className={`text-sm font-medium px-4 py-1.5 rounded-md transition-colors ${viewMode === "customers" ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            By Customer
+          </button>
+          <button
+            onClick={() => setViewMode("focus")}
+            className={`text-sm font-medium px-4 py-1.5 rounded-md transition-colors ${viewMode === "focus" ? "bg-orange-500 text-white" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            Focus Board
+          </button>
+        </div>
         <button
           onClick={() => { setShowSyncAll(true); handleSyncAll(); }}
           className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors"
@@ -374,7 +388,118 @@ export default function TheToDo() {
         </div>
       </div>
 
-      <div className="flex gap-6">
+      {/* Focus Board view */}
+      {viewMode === "focus" && (() => {
+        const openTasks = tasks.filter((t) => t.status !== "done");
+        const groups: { tag: TimeTag; label: string; color: string; tasks: Task[] }[] = [
+          { tag: "today", label: "Today", color: "border-orange-500 bg-orange-50/50", tasks: openTasks.filter((t) => t.timeTag === "today") },
+          { tag: "this-week", label: "This Week", color: "border-orange-300 bg-orange-50/30", tasks: openTasks.filter((t) => t.timeTag === "this-week") },
+          { tag: "soon", label: "Soon", color: "border-gray-300 bg-gray-50", tasks: openTasks.filter((t) => t.timeTag === "soon") },
+        ];
+        const untagged = openTasks.filter((t) => !t.timeTag);
+        return (
+          <div className="space-y-6">
+            {groups.map((g) => (
+              <div key={g.tag || "none"} className={`rounded-xl border-l-4 ${g.color} p-4`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-gray-900">{g.label}</h3>
+                  <span className="text-xs text-gray-400">{g.tasks.length} task{g.tasks.length !== 1 ? "s" : ""}</span>
+                </div>
+                {g.tasks.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-2">No tasks tagged {g.label.toLowerCase()}</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {g.tasks
+                      .sort((a, b) => {
+                        const pOrd = { P1: 0, P2: 1, P3: 2 };
+                        return pOrd[a.priority] - pOrd[b.priority];
+                      })
+                      .map((t) => {
+                        const customer = customers.find((c) => c.id === t.customerId);
+                        const pCfg = PRIORITY_CONFIG[t.priority];
+                        return (
+                          <div key={t.id} className="flex items-center gap-3 bg-white/80 backdrop-blur rounded-lg border border-silver-200 px-3 py-2 shadow-sm">
+                            <button
+                              onClick={() => cycleStatus(t)}
+                              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                t.status === "in-progress" ? "border-blue-400 bg-blue-50" : "border-gray-300 hover:border-orange-400"
+                              }`}
+                            >
+                              {t.status === "in-progress" && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-medium text-gray-900 truncate block">{t.title}</span>
+                            </div>
+                            {customer && (
+                              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ backgroundColor: customer.color }}>
+                                {customer.name}
+                              </span>
+                            )}
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${pCfg.bg} ${pCfg.color} shrink-0`}>{t.priority}</span>
+                            {/* Move between lanes */}
+                            <select
+                              value={t.timeTag || ""}
+                              onChange={(e) => handleUpdateTask(t.id, { timeTag: (e.target.value || null) as TimeTag })}
+                              className="text-[10px] border border-gray-200 rounded px-1 py-0.5 bg-white shrink-0"
+                            >
+                              <option value="today">Today</option>
+                              <option value="this-week">This Week</option>
+                              <option value="soon">Soon</option>
+                              <option value="">Untagged</option>
+                            </select>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            ))}
+            {untagged.length > 0 && (
+              <div className="rounded-xl border border-dashed border-gray-300 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-gray-400">Untagged</h3>
+                  <span className="text-xs text-gray-400">{untagged.length} task{untagged.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {untagged
+                    .sort((a, b) => {
+                      const pOrd = { P1: 0, P2: 1, P3: 2 };
+                      return pOrd[a.priority] - pOrd[b.priority];
+                    })
+                    .map((t) => {
+                      const customer = customers.find((c) => c.id === t.customerId);
+                      return (
+                        <div key={t.id} className="flex items-center gap-3 bg-white/60 rounded-lg border border-gray-200 px-3 py-2">
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm text-gray-500 truncate block">{t.title}</span>
+                          </div>
+                          {customer && (
+                            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ backgroundColor: customer.color }}>
+                              {customer.name}
+                            </span>
+                          )}
+                          <select
+                            value=""
+                            onChange={(e) => handleUpdateTask(t.id, { timeTag: (e.target.value || null) as TimeTag })}
+                            className="text-[10px] border border-gray-200 rounded px-1 py-0.5 bg-white shrink-0"
+                          >
+                            <option value="">—</option>
+                            <option value="today">Today</option>
+                            <option value="this-week">This Week</option>
+                            <option value="soon">Soon</option>
+                          </select>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Customer view */}
+      {viewMode === "customers" && <div className="flex gap-6">
         {/* Sidebar — customers */}
         <div className="w-64 shrink-0">
           <div className="bg-white/80 backdrop-blur rounded-xl border border-silver-200 overflow-hidden shadow-sm">
@@ -575,17 +700,17 @@ export default function TheToDo() {
                 <option value="seed">Seed</option>
               </select>
               <div className="flex items-center gap-1 ml-1">
-                {(["all", "today", "this-week"] as const).map((tag) => (
+                {(["all", "today", "this-week", "soon"] as const).map((tag) => (
                   <button
                     key={tag}
                     onClick={() => setFilterTimeTag(tag)}
                     className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
                       filterTimeTag === tag
-                        ? tag === "today" ? "bg-orange-500 text-white" : tag === "this-week" ? "bg-orange-200 text-orange-800" : "bg-gray-200 text-gray-700"
+                        ? tag === "today" ? "bg-orange-500 text-white" : tag === "this-week" ? "bg-orange-200 text-orange-800" : tag === "soon" ? "bg-gray-300 text-gray-700" : "bg-gray-200 text-gray-700"
                         : "text-gray-400 hover:bg-gray-100"
                     }`}
                   >
-                    {tag === "all" ? "All" : tag === "today" ? "Today" : "This Week"}
+                    {tag === "all" ? "All" : tag === "today" ? "Today" : tag === "this-week" ? "This Week" : "Soon"}
                   </button>
                 ))}
               </div>
@@ -729,24 +854,19 @@ export default function TheToDo() {
 
                     {/* Time tag + Actions */}
                     <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleUpdateTask(t.id, { timeTag: t.timeTag === "today" ? null : "today" }); }}
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors ${
-                          t.timeTag === "today" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-600"
-                        }`}
-                        title="Tag as Today"
-                      >
-                        Today
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleUpdateTask(t.id, { timeTag: t.timeTag === "this-week" ? null : "this-week" }); }}
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors ${
-                          t.timeTag === "this-week" ? "bg-orange-200 text-orange-800" : "bg-gray-100 text-gray-400 hover:bg-orange-50 hover:text-orange-600"
-                        }`}
-                        title="Tag as This Week"
-                      >
-                        Week
-                      </button>
+                      {([["today", "Today", "bg-orange-500 text-white", "hover:bg-orange-100 hover:text-orange-600"],
+                         ["this-week", "Week", "bg-orange-200 text-orange-800", "hover:bg-orange-50 hover:text-orange-600"],
+                         ["soon", "Soon", "bg-gray-300 text-gray-700", "hover:bg-gray-200 hover:text-gray-600"]] as const).map(([tag, label, active, hover]) => (
+                        <button
+                          key={tag}
+                          onClick={(e) => { e.stopPropagation(); handleUpdateTask(t.id, { timeTag: t.timeTag === tag ? null : tag }); }}
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors ${
+                            t.timeTag === tag ? active : `bg-gray-100 text-gray-400 ${hover}`
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
                       <button
                         onClick={() => setEditingTask(t)}
                         className="text-gray-300 hover:text-orange-500 p-1 transition-colors"
@@ -789,7 +909,7 @@ export default function TheToDo() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Edit task modal */}
       {editingTask && (
@@ -817,17 +937,17 @@ export default function TheToDo() {
               />
               <div className="flex items-center gap-2 mt-4">
                 <label className="text-xs text-gray-500 font-medium">Focus:</label>
-                {([null, "today", "this-week"] as const).map((tag) => (
+                {([null, "today", "this-week", "soon"] as const).map((tag) => (
                   <button
                     key={tag || "none"}
                     onClick={() => { setEditingTask({ ...editingTask, timeTag: tag }); handleUpdateTask(editingTask.id, { timeTag: tag }); }}
                     className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${
                       editingTask.timeTag === tag
-                        ? tag === "today" ? "bg-orange-500 text-white" : tag === "this-week" ? "bg-orange-200 text-orange-800" : "bg-gray-200 text-gray-700"
+                        ? tag === "today" ? "bg-orange-500 text-white" : tag === "this-week" ? "bg-orange-200 text-orange-800" : tag === "soon" ? "bg-gray-300 text-gray-700" : "bg-gray-200 text-gray-700"
                         : "bg-gray-100 text-gray-400 hover:bg-gray-200"
                     }`}
                   >
-                    {tag === null ? "None" : tag === "today" ? "Today" : "This Week"}
+                    {tag === null ? "None" : tag === "today" ? "Today" : tag === "this-week" ? "This Week" : "Soon"}
                   </button>
                 ))}
               </div>
