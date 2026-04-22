@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { Customer, Task, Priority, Status, TaskSource, TimeTag } from "@/lib/types";
+import type { Customer, Task, Priority, Status, TaskSource, TimeTag, PMM } from "@/lib/types";
 import * as store from "@/lib/store";
 import { seedIfEmpty } from "@/lib/seed-tasks";
 
@@ -80,6 +80,7 @@ export default function TheToDo() {
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
   const [filterSource, setFilterSource] = useState<TaskSource | "all">("all");
   const [filterTimeTag, setFilterTimeTag] = useState<TimeTag | "all">("all");
+  const [filterPMM, setFilterPMM] = useState<PMM | "all">("all");
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -334,6 +335,11 @@ export default function TheToDo() {
     .filter((t) => filterPriority === "all" || t.priority === filterPriority)
     .filter((t) => filterSource === "all" || (t.source || "seed") === filterSource)
     .filter((t) => filterTimeTag === "all" || (t.timeTag || null) === filterTimeTag)
+    .filter((t) => {
+      if (filterPMM === "all") return true;
+      const c = customers.find((c) => c.id === t.customerId);
+      return (c?.meta?.pmm || null) === filterPMM;
+    })
     .sort((a, b) => {
       if (a.status === "done" && b.status !== "done") return 1;
       if (a.status !== "done" && b.status === "done") return -1;
@@ -422,7 +428,12 @@ export default function TheToDo() {
 
       {/* Focus Board view */}
       {viewMode === "focus" && (() => {
-        const openTasks = tasks.filter((t) => t.status !== "done");
+        const openTasks = tasks.filter((t) => {
+          if (t.status === "done") return false;
+          if (filterPMM === "all") return true;
+          const c = customers.find((c) => c.id === t.customerId);
+          return (c?.meta?.pmm || null) === filterPMM;
+        });
         const focusAddForm = (
           <>
             {!showFocusAdd ? (
@@ -535,6 +546,24 @@ export default function TheToDo() {
 
         return (
           <div className="space-y-6">
+            {/* PMM filter on focus board */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-1">
+                {(["all", "Glaucia Traverzim", "Fernanda Fragoso", "No PMM"] as const).map((pmm) => (
+                  <button
+                    key={pmm}
+                    onClick={() => setFilterPMM(filterPMM === pmm ? "all" : pmm)}
+                    className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${
+                      filterPMM === pmm
+                        ? pmm === "Glaucia Traverzim" ? "bg-purple-500 text-white" : pmm === "Fernanda Fragoso" ? "bg-pink-500 text-white" : pmm === "No PMM" ? "bg-gray-500 text-white" : "bg-gray-800 text-white"
+                        : "text-gray-400 hover:bg-gray-100"
+                    }`}
+                  >
+                    {pmm === "all" ? "All PMMs" : pmm === "Glaucia Traverzim" ? "Glau" : pmm === "Fernanda Fragoso" ? "Fe" : "No PMM"}
+                  </button>
+                ))}
+              </div>
+            </div>
             {focusAddForm}
             {allLanes.map((g) => (
               <div
@@ -591,6 +620,21 @@ export default function TheToDo() {
                 +
               </button>
             </div>
+            <div className="flex items-center gap-1 px-3 py-2 border-b bg-gray-50/50">
+              {(["all", "Glaucia Traverzim", "Fernanda Fragoso", "No PMM"] as const).map((pmm) => (
+                <button
+                  key={pmm}
+                  onClick={() => setFilterPMM(filterPMM === pmm ? "all" : pmm)}
+                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors ${
+                    filterPMM === pmm
+                      ? pmm === "Glaucia Traverzim" ? "bg-purple-500 text-white" : pmm === "Fernanda Fragoso" ? "bg-pink-500 text-white" : pmm === "No PMM" ? "bg-gray-500 text-white" : "bg-gray-800 text-white"
+                      : "text-gray-400 hover:bg-gray-100"
+                  }`}
+                >
+                  {pmm === "all" ? "All" : pmm === "Glaucia Traverzim" ? "Glau" : pmm === "Fernanda Fragoso" ? "Fe" : "No PMM"}
+                </button>
+              ))}
+            </div>
 
             {showAddCustomer && (
               <div className="px-3 py-2 border-b bg-orange-50">
@@ -625,7 +669,7 @@ export default function TheToDo() {
                 <span className="text-xs text-gray-400">{tasks.length}</span>
               </button>
 
-              {customers.map((c, ci) => {
+              {customers.filter((c) => filterPMM === "all" || (c.meta?.pmm || null) === filterPMM).map((c, ci) => {
                 const counts = taskCounts(c.id);
                 const m = c.meta;
                 const isDragOver = dragOverId === c.id && dragCustomerId !== c.id;
@@ -686,6 +730,13 @@ export default function TheToDo() {
                         {m.stage && (
                           <span className="text-[9px] text-gray-400 truncate max-w-[80px]">{m.stage}</span>
                         )}
+                        {m.pmm && m.pmm !== "No PMM" && (
+                          <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${
+                            m.pmm === "Glaucia Traverzim" ? "bg-purple-100 text-purple-700" : "bg-pink-100 text-pink-700"
+                          }`}>
+                            {m.pmm === "Glaucia Traverzim" ? "Glau" : "Fe"}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -739,6 +790,12 @@ export default function TheToDo() {
                   <div>
                     <p className="text-[10px] text-gray-400 font-medium">Product</p>
                     <p className="text-sm font-semibold">{m.productType || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-medium">PMM</p>
+                    <p className={`text-sm font-semibold ${
+                      m.pmm === "Glaucia Traverzim" ? "text-purple-700" : m.pmm === "Fernanda Fragoso" ? "text-pink-700" : "text-gray-400"
+                    }`}>{m.pmm === "Glaucia Traverzim" ? "Glau" : m.pmm === "Fernanda Fragoso" ? "Fe" : m.pmm || "—"}</p>
                   </div>
                 </div>
               </div>

@@ -18,6 +18,8 @@ export interface Task {
   timeTag: TimeTag;
 }
 
+export type PMM = "Glaucia Traverzim" | "Fernanda Fragoso" | "No PMM" | null;
+
 export interface CustomerMeta {
   owner: string | null;
   stage: string | null;
@@ -29,6 +31,7 @@ export interface CustomerMeta {
   healthScore: number;
   healthLabel: string;
   healthColor: string;
+  pmm: PMM;
 }
 
 export interface Customer {
