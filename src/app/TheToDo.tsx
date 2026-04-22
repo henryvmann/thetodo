@@ -99,6 +99,8 @@ export default function TheToDo() {
   const [parseError, setParseError] = useState<string | null>(null);
   const [dragCustomerId, setDragCustomerId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
+  const [dragOverLane, setDragOverLane] = useState<string | null>(null);
   const addCustomerRef = useRef<HTMLInputElement>(null);
   const addTaskRef = useRef<HTMLInputElement>(null);
 
@@ -403,22 +405,74 @@ export default function TheToDo() {
       {/* Focus Board view */}
       {viewMode === "focus" && (() => {
         const openTasks = tasks.filter((t) => t.status !== "done");
-        const groups: { tag: TimeTag; label: string; color: string; tasks: Task[] }[] = [
-          { tag: "today", label: "Today", color: "border-orange-500 bg-orange-50/50", tasks: openTasks.filter((t) => t.timeTag === "today") },
-          { tag: "this-week", label: "This Week", color: "border-orange-300 bg-orange-50/30", tasks: openTasks.filter((t) => t.timeTag === "this-week") },
-          { tag: "soon", label: "Soon", color: "border-gray-300 bg-gray-50", tasks: openTasks.filter((t) => t.timeTag === "soon") },
+        const allLanes: { tag: TimeTag; label: string; color: string; dropColor: string; tasks: Task[] }[] = [
+          { tag: "today", label: "Today", color: "border-orange-500 bg-orange-50/50", dropColor: "ring-orange-500 bg-orange-100/60", tasks: openTasks.filter((t) => t.timeTag === "today") },
+          { tag: "this-week", label: "This Week", color: "border-orange-300 bg-orange-50/30", dropColor: "ring-orange-400 bg-orange-50/60", tasks: openTasks.filter((t) => t.timeTag === "this-week") },
+          { tag: "soon", label: "Soon", color: "border-gray-300 bg-gray-50", dropColor: "ring-gray-400 bg-gray-100/60", tasks: openTasks.filter((t) => t.timeTag === "soon") },
+          { tag: null, label: "Untagged", color: "border-gray-300 border-dashed bg-transparent", dropColor: "ring-gray-400 bg-gray-50/60", tasks: openTasks.filter((t) => !t.timeTag) },
         ];
-        const untagged = openTasks.filter((t) => !t.timeTag);
+
+        const renderFocusTask = (t: Task, isUntagged = false) => {
+          const customer = customers.find((c) => c.id === t.customerId);
+          const pCfg = PRIORITY_CONFIG[t.priority];
+          return (
+            <div
+              key={t.id}
+              draggable
+              onDragStart={() => setDragTaskId(t.id)}
+              onDragEnd={() => { setDragTaskId(null); setDragOverLane(null); }}
+              className={`flex items-center gap-3 rounded-lg border px-3 py-2 cursor-grab active:cursor-grabbing transition-all ${
+                dragTaskId === t.id ? "opacity-40 scale-95" : ""
+              } ${isUntagged ? "bg-white/60 border-gray-200" : "bg-white/80 backdrop-blur border-silver-200 shadow-sm"}`}
+            >
+              <button
+                onClick={() => cycleStatus(t)}
+                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                  t.status === "in-progress" ? "border-blue-400 bg-blue-50" : "border-gray-300 hover:border-orange-400"
+                }`}
+              >
+                {t.status === "in-progress" && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+              </button>
+              <div className="flex-1 min-w-0">
+                <span className={`text-sm font-medium truncate block ${isUntagged ? "text-gray-500" : "text-gray-900"}`}>{t.title}</span>
+              </div>
+              {customer && (
+                <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ backgroundColor: customer.color }}>
+                  {customer.name}
+                </span>
+              )}
+              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${pCfg.bg} ${pCfg.color} shrink-0`}>{t.priority}</span>
+            </div>
+          );
+        };
+
         return (
           <div className="space-y-6">
-            {groups.map((g) => (
-              <div key={g.tag || "none"} className={`rounded-xl border-l-4 ${g.color} p-4`}>
+            {allLanes.map((g) => (
+              <div
+                key={g.tag || "untagged"}
+                onDragOver={(e) => { e.preventDefault(); setDragOverLane(g.tag as string || "untagged"); }}
+                onDragLeave={() => setDragOverLane(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragTaskId) {
+                    handleUpdateTask(dragTaskId, { timeTag: g.tag });
+                    setDragTaskId(null);
+                    setDragOverLane(null);
+                  }
+                }}
+                className={`rounded-xl border-l-4 p-4 transition-all ${
+                  dragOverLane === (g.tag || "untagged") && dragTaskId ? `ring-2 ${g.dropColor}` : g.color
+                }`}
+              >
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold text-gray-900">{g.label}</h3>
+                  <h3 className={`text-sm font-bold ${g.tag ? "text-gray-900" : "text-gray-400"}`}>{g.label}</h3>
                   <span className="text-xs text-gray-400">{g.tasks.length} task{g.tasks.length !== 1 ? "s" : ""}</span>
                 </div>
                 {g.tasks.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-2">No tasks tagged {g.label.toLowerCase()}</p>
+                  <p className="text-xs text-gray-400 py-4 text-center">
+                    {dragTaskId ? "Drop here" : `No tasks tagged ${g.label.toLowerCase()}`}
+                  </p>
                 ) : (
                   <div className="space-y-1.5">
                     {g.tasks
@@ -426,86 +480,11 @@ export default function TheToDo() {
                         const pOrd = { P1: 0, P2: 1, P3: 2 };
                         return pOrd[a.priority] - pOrd[b.priority];
                       })
-                      .map((t) => {
-                        const customer = customers.find((c) => c.id === t.customerId);
-                        const pCfg = PRIORITY_CONFIG[t.priority];
-                        return (
-                          <div key={t.id} className="flex items-center gap-3 bg-white/80 backdrop-blur rounded-lg border border-silver-200 px-3 py-2 shadow-sm">
-                            <button
-                              onClick={() => cycleStatus(t)}
-                              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                                t.status === "in-progress" ? "border-blue-400 bg-blue-50" : "border-gray-300 hover:border-orange-400"
-                              }`}
-                            >
-                              {t.status === "in-progress" && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
-                            </button>
-                            <div className="flex-1 min-w-0">
-                              <span className="text-sm font-medium text-gray-900 truncate block">{t.title}</span>
-                            </div>
-                            {customer && (
-                              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ backgroundColor: customer.color }}>
-                                {customer.name}
-                              </span>
-                            )}
-                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${pCfg.bg} ${pCfg.color} shrink-0`}>{t.priority}</span>
-                            {/* Move between lanes */}
-                            <select
-                              value={t.timeTag || ""}
-                              onChange={(e) => handleUpdateTask(t.id, { timeTag: (e.target.value || null) as TimeTag })}
-                              className="text-[10px] border border-gray-200 rounded px-1 py-0.5 bg-white shrink-0"
-                            >
-                              <option value="today">Today</option>
-                              <option value="this-week">This Week</option>
-                              <option value="soon">Soon</option>
-                              <option value="">Untagged</option>
-                            </select>
-                          </div>
-                        );
-                      })}
+                      .map((t) => renderFocusTask(t, !g.tag))}
                   </div>
                 )}
               </div>
             ))}
-            {untagged.length > 0 && (
-              <div className="rounded-xl border border-dashed border-gray-300 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold text-gray-400">Untagged</h3>
-                  <span className="text-xs text-gray-400">{untagged.length} task{untagged.length !== 1 ? "s" : ""}</span>
-                </div>
-                <div className="space-y-1.5">
-                  {untagged
-                    .sort((a, b) => {
-                      const pOrd = { P1: 0, P2: 1, P3: 2 };
-                      return pOrd[a.priority] - pOrd[b.priority];
-                    })
-                    .map((t) => {
-                      const customer = customers.find((c) => c.id === t.customerId);
-                      return (
-                        <div key={t.id} className="flex items-center gap-3 bg-white/60 rounded-lg border border-gray-200 px-3 py-2">
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm text-gray-500 truncate block">{t.title}</span>
-                          </div>
-                          {customer && (
-                            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ backgroundColor: customer.color }}>
-                              {customer.name}
-                            </span>
-                          )}
-                          <select
-                            value=""
-                            onChange={(e) => handleUpdateTask(t.id, { timeTag: (e.target.value || null) as TimeTag })}
-                            className="text-[10px] border border-gray-200 rounded px-1 py-0.5 bg-white shrink-0"
-                          >
-                            <option value="">—</option>
-                            <option value="today">Today</option>
-                            <option value="this-week">This Week</option>
-                            <option value="soon">Soon</option>
-                          </select>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
           </div>
         );
       })()}
