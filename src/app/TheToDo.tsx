@@ -76,7 +76,7 @@ export default function TheToDo() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"customers" | "focus">("customers");
-  const [filterStatus, setFilterStatus] = useState<Status | "all">("all");
+  const [filterStatus, setFilterStatus] = useState<Status | "all" | "overdue">("all");
   const [filterPriority, setFilterPriority] = useState<Priority | "all">("all");
   const [filterSource, setFilterSource] = useState<TaskSource | "all">("all");
   const [filterTimeTag, setFilterTimeTag] = useState<TimeTag | "all">("all");
@@ -310,7 +310,7 @@ export default function TheToDo() {
   // Filtered tasks
   const filteredTasks = tasks
     .filter((t) => !selectedCustomer || t.customerId === selectedCustomer)
-    .filter((t) => filterStatus === "all" || t.status === filterStatus)
+    .filter((t) => filterStatus === "all" ? true : filterStatus === "overdue" ? isOverdue(t) : t.status === filterStatus)
     .filter((t) => filterPriority === "all" || t.priority === filterPriority)
     .filter((t) => filterSource === "all" || (t.source || "seed") === filterSource)
     .filter((t) => filterTimeTag === "all" || (t.timeTag || null) === filterTimeTag)
@@ -368,24 +368,36 @@ export default function TheToDo() {
         </button>
       </div>
 
-      {/* Header stats */}
+      {/* Header stats — clickable to filter */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white/80 backdrop-blur rounded-xl border border-silver-200 p-4 shadow-sm">
+        <button
+          onClick={() => { setFilterStatus(filterStatus === "all" ? "all" : "all"); setFilterPriority("all"); setFilterSource("all"); setFilterTimeTag("all"); setViewMode("customers"); setSelectedCustomer(null); }}
+          className={`text-left bg-white/80 backdrop-blur rounded-xl border p-4 shadow-sm transition-colors cursor-pointer ${filterStatus === "all" && filterPriority === "all" ? "border-gray-900 ring-2 ring-gray-900/10" : "border-silver-200 hover:border-gray-400"}`}
+        >
           <p className="text-xs text-gray-500 font-medium">Total Tasks</p>
           <p className="text-2xl font-bold mt-1">{allCounts.total}</p>
-        </div>
-        <div className="bg-white/80 backdrop-blur rounded-xl border border-silver-200 p-4 shadow-sm">
+        </button>
+        <button
+          onClick={() => { setFilterStatus(filterStatus === "done" ? "all" : "done"); setViewMode("customers"); setSelectedCustomer(null); }}
+          className={`text-left bg-white/80 backdrop-blur rounded-xl border p-4 shadow-sm transition-colors cursor-pointer ${filterStatus === "done" ? "border-green-500 ring-2 ring-green-500/20" : "border-silver-200 hover:border-green-300"}`}
+        >
           <p className="text-xs text-gray-500 font-medium">Completed</p>
           <p className="text-2xl font-bold text-green-600 mt-1">{allCounts.done}</p>
-        </div>
-        <div className="bg-white/80 backdrop-blur rounded-xl border border-silver-200 p-4 shadow-sm">
+        </button>
+        <button
+          onClick={() => { setFilterStatus(filterStatus === "in-progress" ? "all" : "in-progress"); setViewMode("customers"); setSelectedCustomer(null); }}
+          className={`text-left bg-white/80 backdrop-blur rounded-xl border p-4 shadow-sm transition-colors cursor-pointer ${filterStatus === "in-progress" ? "border-blue-500 ring-2 ring-blue-500/20" : "border-silver-200 hover:border-blue-300"}`}
+        >
           <p className="text-xs text-gray-500 font-medium">In Progress</p>
           <p className="text-2xl font-bold text-blue-600 mt-1">{tasks.filter((t) => t.status === "in-progress").length}</p>
-        </div>
-        <div className="bg-white/80 backdrop-blur rounded-xl border border-silver-200 p-4 shadow-sm">
+        </button>
+        <button
+          onClick={() => { setFilterStatus(filterStatus === "overdue" ? "all" : "overdue"); setViewMode("customers"); setSelectedCustomer(null); }}
+          className={`text-left bg-white/80 backdrop-blur rounded-xl border p-4 shadow-sm transition-colors cursor-pointer ${filterStatus === "overdue" ? "border-red-500 ring-2 ring-red-500/20" : "border-silver-200 hover:border-red-300"}`}
+        >
           <p className="text-xs text-gray-500 font-medium">Overdue</p>
           <p className={`text-2xl font-bold mt-1 ${allCounts.overdue > 0 ? "text-red-600" : "text-gray-300"}`}>{allCounts.overdue}</p>
-        </div>
+        </button>
       </div>
 
       {/* Focus Board view */}
@@ -671,13 +683,14 @@ export default function TheToDo() {
             <div className="flex items-center gap-2">
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as Status | "all")}
+                onChange={(e) => setFilterStatus(e.target.value as Status | "all" | "overdue")}
                 className="text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
                 <option value="all">All Statuses</option>
                 <option value="todo">To Do</option>
                 <option value="in-progress">In Progress</option>
                 <option value="done">Done</option>
+                <option value="overdue">Overdue</option>
               </select>
               <select
                 value={filterPriority}
