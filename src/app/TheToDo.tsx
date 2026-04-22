@@ -88,6 +88,11 @@ export default function TheToDo() {
   const [newTaskDesc, setNewTaskDesc] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>("P2");
   const [newTaskDue, setNewTaskDue] = useState("");
+  const [showFocusAdd, setShowFocusAdd] = useState(false);
+  const [focusAddTitle, setFocusAddTitle] = useState("");
+  const [focusAddCustomer, setFocusAddCustomer] = useState("");
+  const [focusAddPriority, setFocusAddPriority] = useState<Priority>("P2");
+  const [focusAddLane, setFocusAddLane] = useState<TimeTag>("today");
   const [showSyncAll, setShowSyncAll] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResults, setSyncResults] = useState<{ customer: string; tasks: { title: string; priority: string; description: string; dueDate: string | null; selected: boolean }[]; error?: string }[]>([]);
@@ -115,6 +120,19 @@ export default function TheToDo() {
     const data = store.getAll();
     setCustomers(data.customers);
     setTasks(data.tasks);
+  };
+
+  const handleFocusAddTask = () => {
+    if (!focusAddTitle.trim() || !focusAddCustomer) return;
+    store.addTask(focusAddCustomer, focusAddTitle.trim(), {
+      priority: focusAddPriority,
+      source: "manual",
+    });
+    const newTask = store.getAll().tasks.find((t) => t.title === focusAddTitle.trim() && t.customerId === focusAddCustomer);
+    if (newTask) store.updateTask(newTask.id, { timeTag: focusAddLane });
+    refresh();
+    setFocusAddTitle("");
+    setShowFocusAdd(false);
   };
 
   const handleSyncAll = async () => {
@@ -405,6 +423,75 @@ export default function TheToDo() {
       {/* Focus Board view */}
       {viewMode === "focus" && (() => {
         const openTasks = tasks.filter((t) => t.status !== "done");
+        const focusAddForm = (
+          <>
+            {!showFocusAdd ? (
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => { setShowFocusAdd(true); setFocusAddCustomer(customers[0]?.id || ""); }}
+                  className="px-4 py-1.5 rounded-lg text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+                >
+                  + New Task
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white/80 backdrop-blur rounded-xl border-2 border-orange-300 p-4 mb-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <select
+                    value={focusAddCustomer}
+                    onChange={(e) => setFocusAddCustomer(e.target.value)}
+                    className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white w-44 shrink-0"
+                  >
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={focusAddTitle}
+                    onChange={(e) => setFocusAddTitle(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleFocusAddTask(); if (e.key === "Escape") setShowFocusAdd(false); }}
+                    placeholder="Start with a verb: Review, Build, Send..."
+                    className="flex-1 text-sm font-medium border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    autoFocus
+                  />
+                </div>
+                {focusAddTitle.length > 2 && !startsWithVerb(focusAddTitle) && (
+                  <p className="text-[10px] text-amber-600 mt-1 ml-[11.5rem]">Tip: start with an action verb</p>
+                )}
+                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
+                  <select
+                    value={focusAddPriority}
+                    onChange={(e) => setFocusAddPriority(e.target.value as Priority)}
+                    className="text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                  >
+                    <option value="P1">P1 — Critical</option>
+                    <option value="P2">P2 — Normal</option>
+                    <option value="P3">P3 — Low</option>
+                  </select>
+                  <div className="flex items-center gap-1">
+                    {(["today", "this-week", "soon"] as const).map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => setFocusAddLane(tag)}
+                        className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
+                          focusAddLane === tag
+                            ? tag === "today" ? "bg-orange-500 text-white" : tag === "this-week" ? "bg-orange-200 text-orange-800" : "bg-gray-300 text-gray-700"
+                            : "text-gray-400 hover:bg-gray-100"
+                        }`}
+                      >
+                        {tag === "today" ? "Today" : tag === "this-week" ? "This Week" : "Soon"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex-1" />
+                  <button onClick={() => { setShowFocusAdd(false); setFocusAddTitle(""); }} className="text-xs text-gray-500 px-3 py-1 hover:text-gray-700">Cancel</button>
+                  <button onClick={handleFocusAddTask} disabled={!focusAddTitle.trim() || !focusAddCustomer} className="text-xs bg-orange-500 text-white px-4 py-1.5 rounded-lg hover:bg-orange-600 font-medium disabled:opacity-50">Add Task</button>
+                </div>
+              </div>
+            )}
+          </>
+        );
         const allLanes: { tag: TimeTag; label: string; color: string; dropColor: string; tasks: Task[] }[] = [
           { tag: "today", label: "Today", color: "border-orange-500 bg-orange-50/50", dropColor: "ring-orange-500 bg-orange-100/60", tasks: openTasks.filter((t) => t.timeTag === "today") },
           { tag: "this-week", label: "This Week", color: "border-orange-300 bg-orange-50/30", dropColor: "ring-orange-400 bg-orange-50/60", tasks: openTasks.filter((t) => t.timeTag === "this-week") },
@@ -448,6 +535,7 @@ export default function TheToDo() {
 
         return (
           <div className="space-y-6">
+            {focusAddForm}
             {allLanes.map((g) => (
               <div
                 key={g.tag || "untagged"}
