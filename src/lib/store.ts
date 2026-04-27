@@ -95,7 +95,7 @@ export function addTask(customerId: string, title: string, opts?: { description?
   return task;
 }
 
-export function updateTask(id: string, patch: Partial<Pick<Task, "title" | "description" | "priority" | "status" | "dueDate" | "order" | "timeTag">>): void {
+export function updateTask(id: string, patch: Partial<Pick<Task, "title" | "description" | "priority" | "status" | "dueDate" | "order" | "timeTag" | "customerId">>): void {
   const data = loadData();
   const t = data.tasks.find((t) => t.id === id);
   if (t) {
@@ -105,6 +105,7 @@ export function updateTask(id: string, patch: Partial<Pick<Task, "title" | "desc
     if (patch.dueDate !== undefined) t.dueDate = patch.dueDate;
     if (patch.order !== undefined) t.order = patch.order;
     if (patch.timeTag !== undefined) t.timeTag = patch.timeTag;
+    if (patch.customerId !== undefined) t.customerId = patch.customerId;
     if (patch.status !== undefined) {
       t.status = patch.status;
       t.completedAt = patch.status === "done" ? new Date().toISOString() : null;

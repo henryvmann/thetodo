@@ -440,7 +440,7 @@ export default function TheToDo() {
             {!showFocusAdd ? (
               <div className="flex justify-end mb-4">
                 <button
-                  onClick={() => { setShowFocusAdd(true); setFocusAddCustomer(customers[0]?.id || ""); }}
+                  onClick={() => { setShowFocusAdd(true); setFocusAddCustomer(""); }}
                   className="px-4 py-1.5 rounded-lg text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors"
                 >
                   + New Task
@@ -452,8 +452,9 @@ export default function TheToDo() {
                   <select
                     value={focusAddCustomer}
                     onChange={(e) => setFocusAddCustomer(e.target.value)}
-                    className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white w-44 shrink-0"
+                    className={`text-sm border rounded-lg px-2 py-1.5 bg-white w-44 shrink-0 ${!focusAddCustomer ? "border-red-300 text-gray-400" : "border-gray-200"}`}
                   >
+                    <option value="" disabled>Select customer...</option>
                     {customers.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
@@ -562,8 +563,8 @@ export default function TheToDo() {
               >
                 {t.status === "in-progress" && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
               </button>
-              <div className="flex-1 min-w-0">
-                <span className={`text-sm font-medium truncate block ${isUntagged ? "text-gray-500" : "text-gray-900"}`}>{t.title}</span>
+              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setEditingTask(t)}>
+                <span className={`text-sm font-medium truncate block hover:text-orange-600 transition-colors ${isUntagged ? "text-gray-500" : "text-gray-900"}`}>{t.title}</span>
               </div>
               {customer && (
                 <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ backgroundColor: customer.color }}>
@@ -1116,6 +1117,18 @@ export default function TheToDo() {
                     {tag === null ? "None" : tag === "today" ? "Today" : tag === "this-week" ? "This Week" : "Soon"}
                   </button>
                 ))}
+              </div>
+              <div className="mt-4">
+                <label className="text-xs text-gray-500 font-medium block mb-1">Customer</label>
+                <select
+                  value={editingTask.customerId}
+                  onChange={(e) => { setEditingTask({ ...editingTask, customerId: e.target.value }); handleUpdateTask(editingTask.id, { customerId: e.target.value }); }}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-orange-500"
+                >
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="grid grid-cols-3 gap-3 mt-4">
                 <div>
