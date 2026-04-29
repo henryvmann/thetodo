@@ -1,4 +1,4 @@
-import type { AppData, Customer, Task, Priority, Status, TaskSource, TimeTag } from "./types";
+import type { AppData, Customer, CustomerMeta, Task, Priority, Status, TaskSource, TimeTag } from "./types";
 
 const STORAGE_KEY = "thetodo-data";
 
@@ -112,6 +112,41 @@ export function updateTask(id: string, patch: Partial<Pick<Task, "title" | "desc
     }
     saveData(data);
   }
+}
+
+export async function refreshScoresFromMSD(msdUrl: string): Promise<number> {
+  const resp = await fetch(`${msdUrl}/api/customers-export`);
+  if (!resp.ok) throw new Error(`MSD API error: ${resp.status}`);
+  const json = await resp.json();
+  const msdCustomers: { name: string; owner: string | null; stage: string | null; quarter: string | null; saasStartingARR: number; totalStartingRevenue: number; contractStartDate: string | null; productType: string | null; healthScore: number; healthLabel: string; healthColor: string }[] = json.customers || [];
+
+  const data = loadData();
+  const normalize = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const msdMap = new Map(msdCustomers.map((mc) => [normalize(mc.name), mc]));
+
+  let updated = 0;
+  for (const c of data.customers) {
+    const mc = msdMap.get(normalize(c.name));
+    if (!mc) continue;
+    const newMeta: CustomerMeta = {
+      owner: mc.owner,
+      stage: mc.stage,
+      quarter: mc.quarter,
+      saasStartingARR: mc.saasStartingARR,
+      totalStartingRevenue: mc.totalStartingRevenue,
+      contractStartDate: mc.contractStartDate,
+      productType: mc.productType,
+      healthScore: mc.healthScore,
+      healthLabel: mc.healthLabel,
+      healthColor: mc.healthColor,
+      pmm: c.meta?.pmm || null,
+    };
+    c.meta = newMeta;
+    updated++;
+  }
+
+  if (updated > 0) saveData(data);
+  return updated;
 }
 
 export function deleteTask(id: string): void {

@@ -89,6 +89,8 @@ export default function TheToDo() {
   const [newTaskDesc, setNewTaskDesc] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>("P2");
   const [newTaskDue, setNewTaskDue] = useState("");
+  const [refreshingScores, setRefreshingScores] = useState(false);
+  const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
   const [showFocusAdd, setShowFocusAdd] = useState(false);
   const [focusAddTitle, setFocusAddTitle] = useState("");
   const [focusAddCustomer, setFocusAddCustomer] = useState("");
@@ -123,6 +125,20 @@ export default function TheToDo() {
     const data = store.getAll();
     setCustomers(data.customers);
     setTasks(data.tasks);
+  };
+
+  const handleRefreshScores = async () => {
+    setRefreshingScores(true);
+    setRefreshMsg(null);
+    try {
+      const count = await store.refreshScoresFromMSD("https://msd-command.vercel.app");
+      setRefreshMsg(`Updated ${count} accounts`);
+      refresh();
+    } catch (e) {
+      setRefreshMsg(`Failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+    }
+    setRefreshingScores(false);
+    setTimeout(() => setRefreshMsg(null), 4000);
   };
 
   const handleFocusAddTask = () => {
@@ -388,12 +404,24 @@ export default function TheToDo() {
             Focus Board
           </button>
         </div>
-        <button
-          onClick={() => { setShowSyncAll(true); handleSyncAll(); }}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors"
-        >
-          Sync All from Agency
-        </button>
+        <div className="flex items-center gap-2">
+          {refreshMsg && (
+            <span className={`text-xs ${refreshMsg.includes("Failed") ? "text-red-500" : "text-green-600"}`}>{refreshMsg}</span>
+          )}
+          <button
+            onClick={handleRefreshScores}
+            disabled={refreshingScores}
+            className="px-3 py-2 rounded-lg text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
+          >
+            {refreshingScores ? "Refreshing..." : "Refresh Scores"}
+          </button>
+          <button
+            onClick={() => { setShowSyncAll(true); handleSyncAll(); }}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+          >
+            Sync All from Agency
+          </button>
+        </div>
       </div>
 
       {/* Header stats — clickable to filter */}
