@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Customer, Task, Priority, Status, TaskSource, TimeTag, PMM } from "@/lib/types";
 import * as store from "@/lib/store";
-import { seedIfEmpty } from "@/lib/seed-tasks";
+import { seedIfEmpty, updatePMMAssignments } from "@/lib/seed-tasks";
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; border: string; bg: string }> = {
   P1: { label: "P1 — Critical", color: "text-red-600", border: "border-l-red-500", bg: "bg-red-50" },
@@ -113,6 +113,7 @@ export default function TheToDo() {
 
   useEffect(() => {
     seedIfEmpty();
+    updatePMMAssignments();
     const data = store.getAll();
     setCustomers(data.customers);
     setTasks(data.tasks);

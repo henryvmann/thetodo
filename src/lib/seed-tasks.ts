@@ -48,49 +48,35 @@ const CUSTOMERS: SeedCustomerWithColor[] = [
 ];
 
 const TASKS: SeedTask[] = [
-  // DataRobot
   { customer: "DataRobot", title: "Review latest call notes and extract action items", priority: "P2" },
   { customer: "DataRobot", title: "Design new ad images and creative variants", priority: "P2" },
   { customer: "DataRobot", title: "Launch new campaigns using updated creative", priority: "P2" },
   { customer: "DataRobot", title: "Respond to open Slack messages from DataRobot team", priority: "P1" },
   { customer: "DataRobot", title: "Build and launch ChatGPT-themed ad experiments", priority: "P2" },
-  // Backbase
   { customer: "Backbase", title: "Audit each reporting gap and confirm whether it's a real platform limitation or a config issue", priority: "P1", description: "Go through every item flagged as 'can't be done' and verify in-platform. Document which are real gaps vs. fixable." },
-  // Ambient
   { customer: "Ambient", title: "Review latest call recording and pull out key notes", priority: "P2" },
   { customer: "Ambient", title: "Send EBR request email to Ambient stakeholders", priority: "P1" },
   { customer: "Ambient", title: "Prepare webinar slide deck and talking points", priority: "P2" },
   { customer: "Ambient", title: "Build presentation slides for Gil's review", priority: "P2" },
   { customer: "Ambient", title: "Schedule a 30-min sync with Alberto to align on next steps", priority: "P1" },
-  // Parity
   { customer: "Parity", title: "Read through the shared document and summarize key points", priority: "P2" },
   { customer: "Parity", title: "Research dynamic ad creative capabilities and report findings", priority: "P2" },
-  // Crusoe
   { customer: "Crusoe", title: "Set up Facebook NVIDIA ad campaigns with approved creative", priority: "P2" },
   { customer: "Crusoe", title: "Apply the 4 requested adjustments to active campaigns", priority: "P1" },
-  // Monotype
   { customer: "Monotype", title: "Review and finalize the Monotype renewal contract", priority: "P1" },
-  // Motus
   { customer: "Motus", title: "Build demo campaigns to showcase platform capabilities", priority: "P2" },
   { customer: "Motus", title: "Create brand awareness campaign structure and targeting", priority: "P2" },
   { customer: "Motus", title: "Launch production campaigns with full targeting and budget", priority: "P1" },
   { customer: "Motus", title: "Build out Trends Report campaign with proper experiment setup", priority: "P2" },
   { customer: "Motus", title: "Review current total spend ($125k) and flag any pacing issues", priority: "P3" },
-  // Zoom
   { customer: "Zoom", title: "Verify audiences are syncing correctly between Metadata and SFDC", priority: "P2" },
   { customer: "Zoom", title: "Remove CX audiences from active targeting", priority: "P1" },
   { customer: "Zoom", title: "Prepare renewal proposal and schedule renewal conversation", priority: "P1" },
-  // SafelyYou
   { customer: "SafelyYou", title: "QA current campaign setup and flag anything off-track", priority: "P2" },
-  // Direct Travel
   { customer: "Direct Travel", title: "Run Crystal comparison analysis and document findings", priority: "P2" },
-  // Planful
   { customer: "Planful", title: "Pull performance report and package for renewal discussion", priority: "P1" },
-  // HopSkipDrive
   { customer: "HopSkipDrive", title: "Inspect account setup and identify optimization opportunities", priority: "P2" },
-  // Internal
   { customer: "Internal", title: "Map out the LinkedIn Manus automation flow end-to-end", priority: "P2" },
-  // Henry (personal / work-related)
   { customer: "Henry", title: "Submit outstanding expense reports", priority: "P3" },
 ];
 
@@ -98,13 +84,11 @@ export function seedIfEmpty(): boolean {
   const data = store.getAll();
   if (data.customers.length > 0 || data.tasks.length > 0) return false;
 
-  const customerMap = new Map<string, string>(); // name → id
+  const customerMap = new Map<string, string>();
 
-  // Create all customers
   for (let i = 0; i < CUSTOMERS.length; i++) {
     const c = store.addCustomer(CUSTOMERS[i].name);
     store.updateCustomer(c.id, { color: CUSTOMERS[i].color });
-    // Attach meta by re-saving through raw localStorage
     const d = store.getAll();
     const found = d.customers.find((x) => x.id === c.id);
     if (found) {
@@ -114,7 +98,6 @@ export function seedIfEmpty(): boolean {
     customerMap.set(CUSTOMERS[i].name, c.id);
   }
 
-  // Create tasks
   for (const t of TASKS) {
     const custId = customerMap.get(t.customer);
     if (!custId) continue;
@@ -126,4 +109,30 @@ export function seedIfEmpty(): boolean {
   }
 
   return true;
+}
+
+// Update PMM assignments on existing data (can be called anytime)
+export function updatePMMAssignments(): number {
+  const data = store.getAll();
+  const normalize = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const pmmMap = new Map<string, string>();
+  for (const c of CUSTOMERS) {
+    if (c.meta.pmm) pmmMap.set(normalize(c.name), c.meta.pmm);
+  }
+
+  let updated = 0;
+  for (const c of data.customers) {
+    const pmm = pmmMap.get(normalize(c.name));
+    if (pmm && c.meta && c.meta.pmm !== pmm) {
+      c.meta.pmm = pmm as CustomerMeta["pmm"];
+      updated++;
+    } else if (pmm && !c.meta) {
+      // skip - no meta to update
+    }
+  }
+
+  if (updated > 0) {
+    localStorage.setItem("thetodo-data", JSON.stringify(data));
+  }
+  return updated;
 }
